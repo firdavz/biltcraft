@@ -9,6 +9,8 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
+import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans';
+import { HabbitRuntime } from '@/components/HabbitRuntime';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
@@ -47,8 +49,7 @@ export { ErrorBoundary };
 // Before any screen renders an Image or loads a font.
 patchExpoGoAssetUrls();
 
-// Starter is light-only by default. Remove this when implementing requested dark mode.
-Uniwind.setTheme('light');
+Uniwind.setTheme('dark');
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -58,6 +59,7 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
   // Report uncaught JS errors and unhandled promise rejections to parent (Bilt preview iframe)
@@ -146,8 +148,13 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <HeroUINativeProvider>
         <Stack>
-          <Stack.Screen name="(tabs)" options={{ title: 'Habits', headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ title: 'Habbit', headerShown: false }} />
+          <Stack.Screen
+            name="camera"
+            options={{ headerShown: false, presentation: 'fullScreenModal' }}
+          />
         </Stack>
+        <HabbitRuntime />
         <InstallPrompt />
       </HeroUINativeProvider>
     </GestureHandlerRootView>

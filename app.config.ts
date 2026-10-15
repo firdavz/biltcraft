@@ -10,11 +10,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: 'BiltCraft',
+    name: 'Habbit',
     slug: 'biltcraft',
     version: process.env.BILT_APP_VERSION ?? '1.0.0',
     orientation: 'portrait',
-    userInterfaceStyle: 'automatic',
+    userInterfaceStyle: 'dark',
     scheme: 'biltcraft',
     runtimeVersion: {
       policy: 'appVersion',
@@ -41,7 +41,22 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       appStoreAppId: process.env.BILT_APP_STORE_APP_ID,
     },
-    plugins: ['expo-router', 'expo-font', ...nativePlugins],
+    plugins: [
+      'expo-router',
+      'expo-font',
+      'expo-splash-screen',
+      [
+        'expo-camera',
+        {
+          cameraPermission: 'Let Habbit capture your daily proof.',
+          microphonePermission: 'Let Habbit record audio with your proof.',
+          recordAudioAndroid: true,
+        },
+      ],
+      'expo-notifications',
+      '@react-native-community/datetimepicker',
+      ...nativePlugins,
+    ],
     experiments: {
       typedRoutes: true,
       reactCompiler: true,
