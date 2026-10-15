@@ -1,8 +1,19 @@
-export const TELEGRAM_BOT_TOKEN = 'PASTE_TOKEN_HERE';
-export const BOT_USERNAME = 'PASTE_BOT_USERNAME'; // without @
+import Constants from 'expo-constants';
 
-export const telegramConfigured = () =>
-  TELEGRAM_BOT_TOKEN !== 'PASTE_TOKEN_HERE' && BOT_USERNAME !== 'PASTE_BOT_USERNAME';
+const configuredToken: unknown = Constants.expoConfig?.extra?.telegramBotToken;
+export const TELEGRAM_BOT_TOKEN = typeof configuredToken === 'string' ? configuredToken.trim() : '';
+let botUsername = '';
+
+export const telegramConfigured = () => TELEGRAM_BOT_TOKEN.length > 0;
+
+export async function getBotUsername(): Promise<string> {
+  if (botUsername) return botUsername;
+  const bot = await telegram<{ id: number; is_bot: boolean; username?: string }>('getMe');
+  if (!bot.is_bot || !bot.username)
+    throw new TelegramError('Telegram could not identify your bot.');
+  botUsername = bot.username;
+  return botUsername;
+}
 export type TelegramChat = { id: number; title?: string; type: string };
 export type TelegramMessage = {
   message_id: number;
@@ -22,7 +33,7 @@ export async function telegram<T>(
   body: Record<string, unknown> | FormData = {},
 ): Promise<T> {
   if (!telegramConfigured())
-    throw new TelegramError('Add your bot token and username in lib/telegram.ts first.');
+    throw new TelegramError('Your bot is not available yet. Reopen the app and try again.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), body instanceof FormData ? 120000 : 20000);
   try {
@@ -41,8 +52,9 @@ export async function telegram<T>(
   }
 }
 
-export function connectionLink(code: string) {
-  return `https://t.me/${BOT_USERNAME}?startgroup=${encodeURIComponent(code)}`;
+export async function connectionLink(code: string): Promise<string> {
+  const username = await getBotUsername();
+  return `https://t.me/${username}?startgroup=${encodeURIComponent(code)}`;
 }
 export const sendMessage = (chatId: number, text: string) =>
   telegram<TelegramMessage>('sendMessage', { chat_id: chatId, text });

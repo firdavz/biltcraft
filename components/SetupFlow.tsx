@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
 import { Button, Input, Label, TextField } from 'heroui-native';
 import { ChevronLeft, Users, Check, Send, Link2 } from 'lucide-react-native';
@@ -9,7 +9,7 @@ import { TimePicker } from './TimePicker';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { save, useHabbit, type HabitConfig } from '@/lib/habbit-store';
 import { action, startChallenge, reportError, openLocalDemo } from '@/lib/habbit-engine';
-import { connectionLink, telegramConfigured, sendMessage, BOT_USERNAME } from '@/lib/telegram';
+import { connectionLink, telegramConfigured, sendMessage, getBotUsername } from '@/lib/telegram';
 import { checkGroup, connectManually } from '@/lib/habbit-connection';
 
 const titles = [
@@ -33,6 +33,21 @@ export function SetupFlow() {
   const [manual, setManual] = useState(false);
   const [chatId, setChatId] = useState('');
   const [tested, setTested] = useState(false);
+  const [botUsername, setBotUsername] = useState('');
+  useEffect(() => {
+    if (step !== 6 || !telegramConfigured()) return undefined;
+    let active = true;
+    void getBotUsername()
+      .then((username) => {
+        if (active) setBotUsername(username);
+      })
+      .catch((error: unknown) => {
+        if (active) reportError(error);
+      });
+    return () => {
+      active = false;
+    };
+  }, [step]);
   const [custom, setCustom] = useState<Record<string, boolean>>({});
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const select = (patch: Partial<HabitConfig>) => {
@@ -298,14 +313,13 @@ export function SetupFlow() {
               {code}
             </Text>
             <Text style={[ui.copy, { marginTop: 14 }]}>
-              Add the bot, then send /start@{BOT_USERNAME} {code} in the group from your own
-              Telegram account.
+              Add the bot, then send {botUsername ? `/start@${botUsername}` : '/start'} {code} in
+              the group from your own Telegram account.
             </Text>
           </View>
           {!telegramConfigured() && (
             <Text style={ui.copy}>
-              Your bot is not configured yet. Add its token and username in lib/telegram.ts to
-              connect.
+              Your bot is not available yet. Reopen the app and try again.
             </Text>
           )}
           <ActionButton
@@ -313,7 +327,11 @@ export function SetupFlow() {
             disabled={!telegramConfigured()}
             icon={<Send size={18} color={colors.accent} />}
             onPress={() => {
-              void Linking.openURL(connectionLink(code)).catch(reportError);
+              void action(async () => {
+                const link = await connectionLink(code);
+                setBotUsername(await getBotUsername());
+                await Linking.openURL(link);
+              });
             }}
           >
             Connect group
@@ -338,7 +356,8 @@ export function SetupFlow() {
               </Text>
               {group.selfId === null && (
                 <Text style={ui.copy}>
-                  Send /start@{BOT_USERNAME} {code} in the group to identify your Telegram account.
+                  Send {botUsername ? `/start@${botUsername}` : '/start'} {code} in the group to
+                  identify your Telegram account.
                 </Text>
               )}
               <View style={{ gap: 8 }}>
