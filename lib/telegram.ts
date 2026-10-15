@@ -1,10 +1,28 @@
-import Constants from 'expo-constants';
+import { bilt } from './bilt';
 
-const configuredToken: unknown = Constants.expoConfig?.extra?.telegramBotToken;
-export const TELEGRAM_BOT_TOKEN = typeof configuredToken === 'string' ? configuredToken.trim() : '';
 let botUsername = '';
+let sessionReady: Promise<void> | null = null;
 
-export const telegramConfigured = () => TELEGRAM_BOT_TOKEN.length > 0;
+export const telegramConfigured = () =>
+  Boolean(process.env.EXPO_PUBLIC_BILT_URL && process.env.EXPO_PUBLIC_BILT_ANON_KEY);
+
+async function ensureSession(): Promise<void> {
+  if (!sessionReady) {
+    sessionReady = (async () => {
+      const { data, error } = await bilt.auth.getSession();
+      if (error) throw new TelegramError('Could not connect. Please try again.');
+      if (!data.session) {
+        const signedIn = await bilt.auth.signInAnonymously();
+        if (signedIn.error || !signedIn.data.session)
+          throw new TelegramError('Could not connect. Please try again.');
+      }
+    })().catch((error: unknown) => {
+      sessionReady = null;
+      throw error;
+    });
+  }
+  await sessionReady;
+}
 
 export async function getBotUsername(): Promise<string> {
   if (botUsername) return botUsername;
@@ -34,22 +52,21 @@ export async function telegram<T>(
 ): Promise<T> {
   if (!telegramConfigured())
     throw new TelegramError('Your bot is not available yet. Reopen the app and try again.');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), body instanceof FormData ? 120000 : 20000);
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`, {
-      signal: controller.signal,
-      method: 'POST',
-      headers: body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
-      body: body instanceof FormData ? body : JSON.stringify(body),
-    });
-    const result = (await response.json()) as { ok: boolean; result: T; description?: string };
-    if (!result.ok)
-      throw new TelegramError(result.description || 'Telegram could not complete that request.');
-    return result.result;
-  } finally {
-    clearTimeout(timer);
-  }
+  await ensureSession();
+  const multipart = body instanceof FormData;
+  if (multipart) body.append('method', method);
+  const { data, error } = await bilt.functions.invoke<{
+    ok: boolean;
+    result: T;
+    description?: string;
+  }>('telegram', {
+    body: multipart ? body : { method, body },
+    timeout: multipart ? 120000 : 20000,
+  });
+  if (error || !data) throw new TelegramError('Could not reach Telegram. Please try again.');
+  if (!data.ok)
+    throw new TelegramError(data.description || 'Telegram could not complete that request.');
+  return data.result;
 }
 
 export async function connectionLink(code: string): Promise<string> {

@@ -41,7 +41,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       ...config.extra,
       appStoreAppId: process.env.BILT_APP_STORE_APP_ID,
-      telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     },
     plugins: [
       'expo-router',

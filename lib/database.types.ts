@@ -6,7 +6,26 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 declare module '@biltme/backend' {
   interface Database {
     public: {
-      Tables: { [_ in never]: never }
+      Tables: {
+        telegram_bot_access: {
+          Row: {
+            id: boolean
+            owner_id: string
+            created_at: string
+          }
+          Insert: {
+            id?: boolean
+            owner_id: string
+            created_at?: string
+          }
+          Update: {
+            id?: boolean
+            owner_id?: string
+            created_at?: string
+          }
+          Relationships: []
+        }
+      }
       Views: { [_ in never]: never }
       Functions: { [_ in never]: never }
       Enums: { [_ in never]: never }
