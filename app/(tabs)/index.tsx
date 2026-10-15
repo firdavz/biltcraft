@@ -85,13 +85,11 @@ export default function Today() {
   const days = useHabbit((s) => s.days);
   const group = useHabbit((s) => s.group);
   const localDemo = useHabbit((s) => s.localDemo);
-  const busy = useHabbit((s) => s.busy);
   const notificationsReady = useHabbit((s) => s.notificationsReady);
   const now = useNow();
   const day = currentDay(days, now);
   const done = finished(days);
   const [demoOpen, setDemoOpen] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [dismissed, setDismissed] = useState('');
   // Explicit preview-only demo entry; never substitutes for a real Telegram connection.
   useEffect(() => {
@@ -213,14 +211,32 @@ export default function Today() {
         </SectionLabel>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Habit title. Long press for demo controls."
-          onLongPress={() => setDemoOpen((v) => !v)}
+          accessibilityLabel="Open demo and reset controls"
+          onPress={() => setDemoOpen((v) => !v)}
         >
           <GradientTitle size={36}>{draft.habit}</GradientTitle>
         </Pressable>
       </View>
       {localDemo && (
         <Text style={[styles.localDemo, { marginTop: 14 }]}>Local demo · no messages are sent</Text>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        style={{ alignSelf: 'flex-start', marginTop: 12 }}
+        accessibilityState={{ expanded: demoOpen }}
+        onPress={() => setDemoOpen((v) => !v)}
+      >
+        <Button.Label style={{ color: colors.accent }}>
+          {demoOpen ? 'Hide demo & reset' : 'Demo & reset'}
+        </Button.Label>
+      </Button>
+      {demoOpen && (
+        <DemoControls
+          now={now}
+          onClose={() => setDemoOpen(false)}
+          onNextDay={() => setDismissed('')}
+        />
       )}
       <View style={styles.main}>
         {done ? (
@@ -321,96 +337,110 @@ export default function Today() {
         <Text style={styles.quoteText}>“{quote[0]}”</Text>
         <Text style={styles.author}>— {quote[1]}</Text>
       </View>
-      {demoOpen && (
-        <View style={[ui.panel, { marginTop: 20, gap: 12 }]}>
-          <View style={ui.row}>
-            <SectionLabel>Demo controls</SectionLabel>
+    </Screen>
+  );
+}
+function DemoControls({
+  now,
+  onClose,
+  onNextDay,
+}: {
+  now: number;
+  onClose: () => void;
+  onNextDay: () => void;
+}) {
+  const busy = useHabbit((s) => s.busy);
+  const localDemo = useHabbit((s) => s.localDemo);
+  const draft = useHabbit((s) => s.draft);
+  const days = useHabbit((s) => s.days);
+  const day = currentDay(days, now);
+  const [confirmReset, setConfirmReset] = useState(false);
+  return (
+    <View style={[ui.panel, { marginTop: 20, gap: 12 }]}>
+      <View style={ui.row}>
+        <SectionLabel>Demo controls</SectionLabel>
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
+          accessibilityLabel="Close demo controls"
+          onPress={onClose}
+        >
+          <X size={18} color={colors.muted} />
+        </Button>
+      </View>
+      {!localDemo && <Text style={ui.copy}>These controls use your connected Telegram group.</Text>}
+      <Button
+        variant="secondary"
+        isDisabled={busy}
+        onPress={() => {
+          void action(fireAlarm);
+        }}
+      >
+        <Button.Label>Fire alarm now</Button.Label>
+      </Button>
+      <Button
+        variant="secondary"
+        isDisabled={busy}
+        onPress={() => {
+          void action(nextDemoDay);
+          onNextDay();
+        }}
+      >
+        <Button.Label>Next day</Button.Label>
+      </Button>
+      <Button
+        variant="secondary"
+        isDisabled={busy}
+        onPress={() => {
+          void save({ draft: { ...draft, proofMinutes: 1, approvalMinutes: 1 } }).catch(
+            reportError,
+          );
+          void Haptics.selectionAsync();
+        }}
+      >
+        <Button.Label>Use 1-minute windows</Button.Label>
+      </Button>
+      {localDemo && day?.status === 'VOTING' && (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[true, false].map((approve) => (
             <Button
-              isIconOnly
-              variant="ghost"
-              size="sm"
-              accessibilityLabel="Close demo controls"
-              onPress={() => setDemoOpen(false)}
+              key={String(approve)}
+              variant="secondary"
+              style={{ flex: 1 }}
+              isDisabled={busy}
+              onPress={() => {
+                void action(() => demoVote(approve));
+              }}
             >
-              <X size={18} color={colors.muted} />
+              <Button.Label>{approve ? 'Vote real' : 'Vote fake'}</Button.Label>
             </Button>
-          </View>
-          {!localDemo && (
-            <Text style={ui.copy}>These controls use your connected Telegram group.</Text>
-          )}
-          <Button
-            variant="secondary"
-            isDisabled={busy}
-            onPress={() => {
-              void action(fireAlarm);
-            }}
-          >
-            <Button.Label>Fire alarm now</Button.Label>
-          </Button>
-          <Button
-            variant="secondary"
-            isDisabled={busy}
-            onPress={() => {
-              void action(nextDemoDay);
-              setDismissed('');
-            }}
-          >
-            <Button.Label>Next day</Button.Label>
-          </Button>
-          <Button
-            variant="secondary"
-            isDisabled={busy}
-            onPress={() => {
-              void save({ draft: { ...draft, proofMinutes: 1, approvalMinutes: 1 } }).catch(
-                reportError,
-              );
-              void Haptics.selectionAsync();
-            }}
-          >
-            <Button.Label>Use 1-minute windows</Button.Label>
-          </Button>
-          {localDemo && day.status === 'VOTING' && (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[true, false].map((approve) => (
-                <Button
-                  key={String(approve)}
-                  variant="secondary"
-                  style={{ flex: 1 }}
-                  isDisabled={busy}
-                  onPress={() => {
-                    void action(() => demoVote(approve));
-                  }}
-                >
-                  <Button.Label>{approve ? 'Vote real' : 'Vote fake'}</Button.Label>
-                </Button>
-              ))}
-            </View>
-          )}
-          {confirmReset ? (
-            <>
-              <Text style={ui.copy}>Delete your challenge and start over?</Text>
-              <Button
-                variant="secondary"
-                isDisabled={busy}
-                onPress={() => {
-                  void action(resetChallenge);
-                  setConfirmReset(false);
-                }}
-              >
-                <Button.Label>Yes, reset app</Button.Label>
-              </Button>
-              <Button variant="ghost" onPress={() => setConfirmReset(false)}>
-                <Button.Label>Cancel</Button.Label>
-              </Button>
-            </>
-          ) : (
-            <Button variant="ghost" onPress={() => setConfirmReset(true)}>
-              <Button.Label>Reset app</Button.Label>
-            </Button>
-          )}
+          ))}
         </View>
       )}
-    </Screen>
+      {confirmReset ? (
+        <>
+          <Text style={ui.copy}>Delete your challenge and start over?</Text>
+          <Button
+            variant="secondary"
+            isDisabled={busy}
+            onPress={() => {
+              void action(resetChallenge);
+              setConfirmReset(false);
+            }}
+          >
+            <Button.Label>Yes, reset app</Button.Label>
+          </Button>
+          <Button variant="ghost" onPress={() => setConfirmReset(false)}>
+            <Button.Label>Cancel</Button.Label>
+          </Button>
+        </>
+      ) : (
+        <Button variant="ghost" onPress={() => setConfirmReset(true)}>
+          <Button.Label>Reset app</Button.Label>
+        </Button>
+      )}
+    </View>
   );
 }
 const styles = StyleSheet.create({
