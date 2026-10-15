@@ -186,6 +186,7 @@ export default function Today() {
               </Button.Label>
               <ArrowUpRight size={18} color={failed ? colors.white : colors.accent} />
             </Button>
+            <ResetButton />
           </View>
         </View>
       </View>
@@ -228,9 +229,10 @@ export default function Today() {
         onPress={() => setDemoOpen((v) => !v)}
       >
         <Button.Label style={{ color: colors.accent }}>
-          {demoOpen ? 'Hide demo & reset' : 'Demo & reset'}
+          {demoOpen ? 'Hide demo controls' : 'Demo controls'}
         </Button.Label>
       </Button>
+      <ResetButton />
       {demoOpen && (
         <DemoControls
           now={now}
@@ -340,6 +342,29 @@ export default function Today() {
     </Screen>
   );
 }
+function ResetButton() {
+  const busy = useHabbit((s) => s.busy);
+  const [confirmReset, setConfirmReset] = useState(false);
+  return (
+    <View style={{ gap: 8, marginTop: 8 }}>
+      {confirmReset ? (
+        <>
+          <Text style={ui.copy}>Clear your progress and return to setup?</Text>
+          <Button variant="secondary" isDisabled={busy} onPress={() => void action(resetChallenge)}>
+            <Button.Label>{busy ? 'Resetting…' : 'Yes, reset app'}</Button.Label>
+          </Button>
+          <Button variant="ghost" isDisabled={busy} onPress={() => setConfirmReset(false)}>
+            <Button.Label>Cancel</Button.Label>
+          </Button>
+        </>
+      ) : (
+        <Button variant="secondary" isDisabled={busy} onPress={() => setConfirmReset(true)}>
+          <Button.Label>Reset app</Button.Label>
+        </Button>
+      )}
+    </View>
+  );
+}
 function DemoControls({
   now,
   onClose,
@@ -354,7 +379,6 @@ function DemoControls({
   const draft = useHabbit((s) => s.draft);
   const days = useHabbit((s) => s.days);
   const day = currentDay(days, now);
-  const [confirmReset, setConfirmReset] = useState(false);
   return (
     <View style={[ui.panel, { marginTop: 20, gap: 12 }]}>
       <View style={ui.row}>
@@ -417,28 +441,6 @@ function DemoControls({
             </Button>
           ))}
         </View>
-      )}
-      {confirmReset ? (
-        <>
-          <Text style={ui.copy}>Delete your challenge and start over?</Text>
-          <Button
-            variant="secondary"
-            isDisabled={busy}
-            onPress={() => {
-              void action(resetChallenge);
-              setConfirmReset(false);
-            }}
-          >
-            <Button.Label>Yes, reset app</Button.Label>
-          </Button>
-          <Button variant="ghost" onPress={() => setConfirmReset(false)}>
-            <Button.Label>Cancel</Button.Label>
-          </Button>
-        </>
-      ) : (
-        <Button variant="ghost" onPress={() => setConfirmReset(true)}>
-          <Button.Label>Reset app</Button.Label>
-        </Button>
       )}
     </View>
   );
