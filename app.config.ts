@@ -49,8 +49,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'expo-camera',
         {
           cameraPermission: 'Let Habbit capture your daily proof.',
-          microphonePermission: 'Let Habbit record audio with your proof.',
-          recordAudioAndroid: true,
+          microphonePermission: false,
+          recordAudioAndroid: false,
         },
       ],
       'expo-notifications',

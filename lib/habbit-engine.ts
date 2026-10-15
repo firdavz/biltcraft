@@ -220,7 +220,7 @@ export async function startChallenge() {
   await save({ notificationsReady });
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
-export async function sendProof(uri: string, media: 'photo' | 'video') {
+export async function sendProof(uri: string) {
   await reconcile();
   const s = useHabbit.getState();
   const day = currentDay(s.days);
@@ -249,7 +249,7 @@ export async function sendProof(uri: string, media: 'photo' | 'video') {
       ],
     }),
   );
-  await appendMedia(form, media, uri);
+  await appendMedia(form, 'photo', uri);
   if (Date.now() >= day.proofDeadline) {
     await reconcile();
     throw new Error('Your proof window has ended.');
@@ -258,7 +258,7 @@ export async function sendProof(uri: string, media: 'photo' | 'video') {
   try {
     const message = s.localDemo
       ? { message_id: day.day }
-      : await telegram<TelegramMessage>(media === 'photo' ? 'sendPhoto' : 'sendVideo', form);
+      : await telegram<TelegramMessage>('sendPhoto', form);
     await save({
       days: useHabbit.getState().days.map((d) =>
         d.day === day.day

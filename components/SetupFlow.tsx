@@ -250,7 +250,7 @@ export function SetupFlow() {
             />
           </TextField>
           <Text style={[ui.copy, { marginTop: 16 }]}>
-            Pick something you can prove with a photo or a 10-second video.
+            Pick something you can prove with a photo.
           </Text>
         </>
       )}

@@ -1,8 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
-import { View, Text, Platform, Image, StyleSheet } from 'react-native';
-import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
+import { useRef, useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { Camera, RefreshCw, X, Square } from 'lucide-react-native';
+import { Camera, RefreshCw, X } from 'lucide-react-native';
 import { Button } from 'heroui-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { goBackOrReplace } from '@/lib/navigation';
@@ -17,58 +17,28 @@ export default function ProofCamera() {
   const insets = useSafeAreaInsets();
   const camera = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [microphone, requestMicrophone] = useMicrophonePermissions();
-  const [mode, setMode] = useState<'picture' | 'video'>('picture');
   const [facing, setFacing] = useState<'front' | 'back'>('back');
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
   const [ready, setReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
-  const [proof, setProof] = useState<{ uri: string; type: 'photo' | 'video' } | null>(null);
+  const [proof, setProof] = useState<{ uri: string } | null>(null);
   const busy = useHabbit((s) => s.busy);
   const started = useHabbit((s) => s.started);
   const days = useHabbit((s) => s.days);
   const day = currentDay(days);
-  useEffect(() => {
-    if (!recording) return undefined;
-    const timer = setInterval(() => setSeconds((s) => Math.min(10, s + 1)), 1000);
-    return () => clearInterval(timer);
-  }, [recording]);
-  useEffect(() => {
-    if (recording && day?.status !== 'PROOF_WINDOW') camera.current?.stopRecording();
-  }, [recording, day?.status]);
-  useEffect(
-    () => () => {
-      camera.current?.stopRecording();
-    },
-    [],
-  );
+
   async function capture() {
     if (!ready || capturing) return;
-    if (recording) {
-      camera.current?.stopRecording();
-      return;
-    }
+    setCapturing(true);
     try {
-      if (mode === 'picture') {
-        setCapturing(true);
-        const photo = await camera.current?.takePictureAsync({ quality: 0.5 });
-        if (photo) setProof({ uri: photo.uri, type: 'photo' });
-      } else {
-        if (!microphone?.granted && !(await requestMicrophone()).granted)
-          throw new Error('Allow microphone access to record your video proof.');
-        setRecording(true);
-        setSeconds(0);
-        const video = await camera.current?.recordAsync({ maxDuration: 10 });
-        if (video?.uri) setProof({ uri: video.uri, type: 'video' });
-      }
+      const photo = await camera.current?.takePictureAsync({ quality: 0.5 });
+      if (photo) setProof({ uri: photo.uri });
     } catch (e) {
       reportError(e);
     } finally {
-      setRecording(false);
       setCapturing(false);
     }
   }
+
   if (!started || day?.status !== 'PROOF_WINDOW')
     return (
       <Screen>
@@ -86,7 +56,7 @@ export default function ProofCamera() {
           <Camera color={colors.accent} size={40} />
           <Text style={styles.title}>Show up. Show proof.</Text>
           <Text style={styles.copy}>
-            Use your camera to capture a photo or a video. No gallery. No old excuses.
+            Use your camera to take a photo. No gallery. No old excuses.
           </Text>
           <ActionButton
             onPress={() => {
@@ -113,27 +83,18 @@ export default function ProofCamera() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {proof ? (
         <View style={styles.preview}>
-          {proof.type === 'photo' ? (
-            <Image
-              source={{ uri: proof.uri }}
-              resizeMode="contain"
-              style={{ width: '100%', height: '100%' }}
-            />
-          ) : (
-            <View style={styles.center}>
-              <Camera size={40} color={colors.accent} />
-              <Text style={styles.title}>Video captured.</Text>
-              <Text style={styles.copy}>Your {seconds}-second proof is ready to send.</Text>
-            </View>
-          )}
+          <Image
+            source={{ uri: proof.uri }}
+            resizeMode="contain"
+            style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+          />
         </View>
       ) : (
         <CameraView
           ref={camera}
           style={{ flex: 1 }}
           facing={facing}
-          mode={mode}
-          videoQuality="480p"
+          mode="picture"
           onCameraReady={() => setReady(true)}
           onMountError={() =>
             reportError(
@@ -146,22 +107,23 @@ export default function ProofCamera() {
         <Button
           isIconOnly
           variant="secondary"
-          isDisabled={recording || busy}
+          isDisabled={capturing || busy}
           onPress={() => goBackOrReplace('/')}
           accessibilityLabel="Close camera"
         >
           <X size={20} color={colors.foreground} />
         </Button>
-        <SectionLabel>{recording ? `Recording · ${seconds} / 10 s` : 'Today’s proof'}</SectionLabel>
+        <SectionLabel>Today’s proof</SectionLabel>
         {!proof && (
           <Button
             isIconOnly
             variant="secondary"
-            isDisabled={recording}
+            isDisabled={capturing}
             accessibilityLabel="Switch camera"
             onPress={() => {
               setReady(false);
               setFacing((f) => (f === 'back' ? 'front' : 'back'));
+              void Haptics.selectionAsync();
             }}
           >
             <RefreshCw size={20} color={colors.foreground} />
@@ -176,7 +138,7 @@ export default function ProofCamera() {
               busy={busy}
               onPress={() => {
                 void action(async () => {
-                  await sendProof(proof.uri, proof.type);
+                  await sendProof(proof.uri);
                   router.replace('/');
                 });
               }}
@@ -195,44 +157,16 @@ export default function ProofCamera() {
             </Button>
           </>
         ) : (
-          <>
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-              {(['picture', 'video'] as const).map((m) => (
-                <Button
-                  key={m}
-                  size="sm"
-                  variant={mode === m ? 'secondary' : 'ghost'}
-                  isDisabled={recording || capturing || (Platform.OS === 'web' && m === 'video')}
-                  onPress={() => {
-                    setReady(false);
-                    setMode(m);
-                    void Haptics.selectionAsync();
-                  }}
-                >
-                  <Button.Label>{m === 'picture' ? 'Photo' : 'Video · 10 s'}</Button.Label>
-                </Button>
-              ))}
-            </View>
-            {Platform.OS === 'web' && (
-              <Text style={styles.copy}>Video recording is available on iPhone and Android.</Text>
-            )}
-            <ActionButton
-              busy={capturing}
-              disabled={!ready}
-              onPress={() => {
-                void capture();
-              }}
-              icon={
-                recording ? (
-                  <Square color={colors.accent} size={20} />
-                ) : (
-                  <Camera color={colors.accent} size={20} />
-                )
-              }
-            >
-              {recording ? 'Stop recording' : mode === 'picture' ? 'Take photo' : 'Record proof'}
-            </ActionButton>
-          </>
+          <ActionButton
+            busy={capturing}
+            disabled={!ready}
+            onPress={() => {
+              void capture();
+            }}
+            icon={<Camera color={colors.accent} size={20} />}
+          >
+            Take photo
+          </ActionButton>
         )}
       </View>
     </View>

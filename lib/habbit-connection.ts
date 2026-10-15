@@ -44,9 +44,9 @@ export async function findConnection(update: TelegramUpdate) {
     },
   });
 }
-export async function appendMedia(form: FormData, field: 'photo' | 'video', uri: string) {
-  const name = field === 'photo' ? 'proof.jpg' : 'proof.mp4';
-  const type = field === 'photo' ? 'image/jpeg' : 'video/mp4';
+export async function appendMedia(form: FormData, field: 'photo', uri: string) {
+  const name = 'proof.jpg';
+  const type = 'image/jpeg';
   if (Platform.OS === 'web') {
     const response = await fetch(uri);
     const blob = await response.blob();
