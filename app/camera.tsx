@@ -30,7 +30,7 @@ export default function ProofCamera() {
     if (!ready || capturing) return;
     setCapturing(true);
     try {
-      const photo = await camera.current?.takePictureAsync({ quality: 0.5 });
+      const photo = await camera.current?.takePictureAsync({ quality: 0.5, imageType: 'jpg' });
       if (photo) setProof({ uri: photo.uri });
     } catch (e) {
       reportError(e);
