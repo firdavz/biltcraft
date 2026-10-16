@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
 import { Button, Input, Label, TextField } from 'heroui-native';
-import { ChevronLeft, Users, Check, Send, Link2 } from 'lucide-react-native';
+import { ChevronLeft, Users, Check, Send, Copy } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
+import type { PropsWithChildren } from 'react';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from './HabbitUI';
 import { GradientTitle } from './GradientTitle';
 import { TimePicker } from './TimePicker';
@@ -19,8 +21,23 @@ const titles = [
   'How long will\nyou commit?',
   'Set your\nmoment of truth.',
   'Give your\nwitnesses time.',
-  'Make it\npublic.',
+  'Connect your\nTelegram group.',
 ];
+function GuideStep({
+  number,
+  title,
+  children,
+}: PropsWithChildren<{ number: number; title: string }>) {
+  return (
+    <View style={styles.guideStep}>
+      <Text style={styles.guideNumber}>{number}.</Text>
+      <View style={{ flex: 1, gap: 8 }}>
+        <Text style={styles.guideTitle}>{title}</Text>
+        {children}
+      </View>
+    </View>
+  );
+}
 function update(patch: Partial<HabitConfig>) {
   void save({ draft: { ...useHabbit.getState().draft, ...patch } }).catch(reportError);
 }
@@ -34,6 +51,27 @@ export function SetupFlow() {
   const [chatId, setChatId] = useState('');
   const [tested, setTested] = useState(false);
   const [botUsername, setBotUsername] = useState('');
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
+  const command = botUsername ? `/start@${botUsername} ${code}` : '';
+  useEffect(() => {
+    if (!copiedValue) return undefined;
+    const timer = setTimeout(() => setCopiedValue(null), 2500);
+    return () => clearTimeout(timer);
+  }, [copiedValue]);
+  async function copyText(value: string) {
+    setCopying(true);
+    try {
+      const copied = await Clipboard.setStringAsync(value);
+      if (!copied) throw new Error('Could not copy. Select the text and copy it, or try again.');
+      setCopiedValue(value);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      reportError(new Error('Could not copy. Select the text and copy it, or try again.'));
+    } finally {
+      setCopying(false);
+    }
+  }
   useEffect(() => {
     if (step !== 6 || !telegramConfigured()) return undefined;
     let active = true;
@@ -208,7 +246,7 @@ export function SetupFlow() {
         <GradientTitle size={38}>{titles[step]}</GradientTitle>
         {step === 0 && (
           <Text style={[ui.copy, { marginTop: 20, maxWidth: 280 }]}>
-            Build a new habit, or everyone finds out.
+            Choose a habit, send daily photo proof, and let a friend keep you accountable.
           </Text>
         )}
       </View>
@@ -296,47 +334,90 @@ export function SetupFlow() {
       )}
       {step === 6 && (
         <View style={{ gap: 20 }}>
-          <View style={ui.panel}>
-            <View style={[ui.row, { marginBottom: 16 }]}>
-              <SectionLabel>Connection code</SectionLabel>
-              <Link2 size={18} color={colors.accent} />
-            </View>
-            <Text
-              selectable
-              style={{
-                color: colors.foreground,
-                fontFamily: headingFont,
-                fontSize: 26,
-                letterSpacing: 1.5,
+          <GuideStep number={1} title="Create a Telegram group">
+            <Text style={ui.copy}>
+              Add yourself and at least one friend who will check your photo proof. Use a group that
+              is not already connected to someone else’s Habbit.
+            </Text>
+          </GuideStep>
+          <GuideStep number={2} title="Add the Habbit bot">
+            <Text style={ui.copy}>
+              Tap below, then choose the group you just created in Telegram.
+            </Text>
+            <ActionButton
+              busy={busy}
+              disabled={!telegramConfigured()}
+              icon={<Send size={18} color={colors.accent} />}
+              onPress={() => {
+                void action(async () => {
+                  await syncConnection();
+                  const link = await connectionLink(useHabbit.getState().code);
+                  setBotUsername(await getBotUsername());
+                  await Linking.openURL(link);
+                });
               }}
             >
-              {code}
+              Add bot to my group
+            </ActionButton>
+          </GuideStep>
+          <GuideStep number={3} title="Send your connection message">
+            <Text style={ui.copy}>
+              In that group, send the message below from your own Telegram account—not in a private
+              chat with the bot. Then come back here.
             </Text>
-            <Text style={[ui.copy, { marginTop: 14 }]}>
-              Add the bot, then send {botUsername ? `/start@${botUsername}` : '/start'} {code} in
-              the group from your own Telegram account.
-            </Text>
-          </View>
+            <View style={[ui.panel, { padding: 14, gap: 12 }]}>
+              <Text style={styles.fieldLabel}>Your connection code</Text>
+              <View style={[ui.row, { gap: 12, alignItems: 'flex-start' }]}>
+                <Text selectable style={styles.connectionCode}>
+                  {code}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  style={{ minHeight: 44 }}
+                  isDisabled={copying || !code}
+                  accessibilityLabel="Copy connection code"
+                  onPress={() => {
+                    void copyText(code);
+                  }}
+                >
+                  {copiedValue === code ? (
+                    <Check size={16} color={colors.accent} />
+                  ) : (
+                    <Copy size={16} color={colors.accent} />
+                  )}
+                  <Button.Label style={{ color: colors.accent }}>
+                    {copiedValue === code ? 'Copied' : 'Copy'}
+                  </Button.Label>
+                </Button>
+              </View>
+              <View style={ui.divider} />
+              <Text selectable style={[ui.copy, { color: colors.foreground }]}>
+                {command || 'Loading your connection message…'}
+              </Text>
+              <Button
+                variant="secondary"
+                isDisabled={copying || !command}
+                onPress={() => {
+                  void copyText(command);
+                }}
+              >
+                {copiedValue === command ? (
+                  <Check size={16} color={colors.accent} />
+                ) : (
+                  <Copy size={16} color={colors.accent} />
+                )}
+                <Button.Label style={{ color: colors.accent }}>
+                  {copiedValue === command ? 'Message copied' : 'Copy full message'}
+                </Button.Label>
+              </Button>
+            </View>
+          </GuideStep>
           {!telegramConfigured() && (
             <Text style={ui.copy}>
               Your bot is not available yet. Reopen the app and try again.
             </Text>
           )}
-          <ActionButton
-            busy={busy}
-            disabled={!telegramConfigured()}
-            icon={<Send size={18} color={colors.accent} />}
-            onPress={() => {
-              void action(async () => {
-                await syncConnection();
-                const link = await connectionLink(useHabbit.getState().code);
-                setBotUsername(await getBotUsername());
-                await Linking.openURL(link);
-              });
-            }}
-          >
-            Connect group
-          </ActionButton>
           {group ? (
             <View style={[ui.panel, { gap: 16 }]}>
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -361,6 +442,11 @@ export function SetupFlow() {
                   identify your Telegram account.
                 </Text>
               )}
+              <Text style={ui.copy}>
+                {tested
+                  ? 'All set. Tap “Start my challenge” below.'
+                  : 'Send a test message below. Once it arrives in Telegram, start your challenge.'}
+              </Text>
               <View style={{ gap: 8 }}>
                 <Button
                   variant="secondary"
@@ -399,12 +485,20 @@ export function SetupFlow() {
             </View>
           ) : (
             <Text style={[ui.copy, { textAlign: 'center' }]}>
-              Waiting for your code in the group…
+              Send your connection message in Telegram, then return here to finish.
             </Text>
           )}
-          <Text onLongPress={() => setManual((v) => !v)} style={styles.manualTrigger}>
-            Trouble connecting?
-          </Text>
+          <Button
+            variant="ghost"
+            onPress={() => {
+              setManual((v) => !v);
+              void Haptics.selectionAsync();
+            }}
+          >
+            <Button.Label style={{ color: colors.muted }}>
+              {manual ? 'Hide connection help' : 'Trouble connecting?'}
+            </Button.Label>
+          </Button>
           {manual && (
             <View style={{ gap: 12 }}>
               <TextField>
@@ -438,12 +532,9 @@ export function SetupFlow() {
       )}
       {step === 0 && (
         <View style={styles.promise}>
-          <View style={styles.line} />
-          <View style={{ gap: 22 }}>
-            <SectionLabel>One habit</SectionLabel>
-            <SectionLabel>Daily proof</SectionLabel>
-            <SectionLabel>Real witnesses</SectionLabel>
-          </View>
+          <GuideStep number={1} title="Choose one habit and a daily alarm" />
+          <GuideStep number={2} title="Connect a Telegram group with a friend" />
+          <GuideStep number={3} title="Take a photo each day for your friend to approve" />
         </View>
       )}
     </Screen>
@@ -487,7 +578,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  promise: { marginTop: 46, marginBottom: 32, flexDirection: 'row', gap: 20 },
-  line: { width: 1, backgroundColor: colors.border },
-  manualTrigger: { color: colors.muted, textAlign: 'center', fontSize: 12, padding: 8 },
+  promise: { marginTop: 32, marginBottom: 16, gap: 20 },
+  guideStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  guideNumber: {
+    width: 24,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 17,
+    lineHeight: 24,
+    color: colors.accent,
+  },
+  guideTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.foreground,
+  },
+  connectionCode: {
+    flex: 1,
+    flexShrink: 1,
+    fontFamily: headingFont,
+    fontSize: 20,
+    lineHeight: 29,
+    color: colors.foreground,
+  },
 });
