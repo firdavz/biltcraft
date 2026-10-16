@@ -2,6 +2,32 @@ import { Platform } from 'react-native';
 import { telegram, type TelegramUpdate, type TelegramChat } from './telegram';
 import { save, useHabbit } from './habbit-store';
 
+export async function syncConnection() {
+  const state = useHabbit.getState();
+  const result = await telegram<{
+    code: string;
+    group: { id: number; selfId: number; title: string } | null;
+  }>('syncConnection', {
+    code: state.code,
+    group: state.group,
+    message_ids: state.days.flatMap((day) => (day.messageId === undefined ? [] : [day.messageId])),
+  });
+  // A reset may have happened while the connection request was in flight.
+  if (useHabbit.getState().code !== state.code) return;
+  await save({
+    code: result.code,
+    ...(result.group
+      ? {
+          group: {
+            ...result.group,
+            memberCount: state.group?.id === result.group.id ? state.group.memberCount : 0,
+          },
+        }
+      : {}),
+  });
+  if (result.group && state.group?.id !== result.group.id) await checkGroup();
+}
+
 export async function checkGroup() {
   const group = useHabbit.getState().group;
   if (!group) throw new Error('Connect your Telegram group first.');

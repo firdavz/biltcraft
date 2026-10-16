@@ -19,7 +19,7 @@ import {
   type Day,
   type HabitConfig,
 } from './habbit-store';
-import { findConnection, checkGroup, appendMedia } from './habbit-connection';
+import { findConnection, checkGroup, appendMedia, syncConnection } from './habbit-connection';
 import { approvedMessage, shameMessage, kickoff } from './habbit-copy';
 import { scheduleAlarms, cancelAlarms } from './habbit-notifications';
 
@@ -193,8 +193,9 @@ async function handleUpdate(update: TelegramUpdate) {
 export async function pollUpdates() {
   const state = useHabbit.getState();
   if (!state.hydrated || state.localDemo || !telegramConfigured()) return;
+  await syncConnection();
   const updates = await telegram<TelegramUpdate[]>('getUpdates', {
-    offset: state.offset,
+    offset: useHabbit.getState().offset,
     timeout: 0,
     allowed_updates: ['message', 'callback_query'],
   });

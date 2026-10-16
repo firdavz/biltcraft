@@ -10,7 +10,7 @@ import { colors, headingFont } from '@/lib/habbit-theme';
 import { save, useHabbit, type HabitConfig } from '@/lib/habbit-store';
 import { action, startChallenge, reportError, openLocalDemo } from '@/lib/habbit-engine';
 import { connectionLink, telegramConfigured, sendMessage, getBotUsername } from '@/lib/telegram';
-import { checkGroup, connectManually } from '@/lib/habbit-connection';
+import { checkGroup, connectManually, syncConnection } from '@/lib/habbit-connection';
 
 const titles = [
   'What should we\ncall you?',
@@ -306,8 +306,8 @@ export function SetupFlow() {
               style={{
                 color: colors.foreground,
                 fontFamily: headingFont,
-                fontSize: 34,
-                letterSpacing: 3,
+                fontSize: 26,
+                letterSpacing: 1.5,
               }}
             >
               {code}
@@ -328,7 +328,8 @@ export function SetupFlow() {
             icon={<Send size={18} color={colors.accent} />}
             onPress={() => {
               void action(async () => {
-                const link = await connectionLink(code);
+                await syncConnection();
+                const link = await connectionLink(useHabbit.getState().code);
                 setBotUsername(await getBotUsername());
                 await Linking.openURL(link);
               });

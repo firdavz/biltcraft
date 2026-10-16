@@ -25,6 +25,108 @@ declare module '@biltme/backend' {
           }
           Relationships: []
         }
+        telegram_connections: {
+          Row: {
+            owner_id: string
+            chat_id: number
+            self_id: number
+            title: string
+            created_at: string
+          }
+          Insert: {
+            owner_id: string
+            chat_id: number
+            self_id: number
+            title: string
+            created_at?: string
+          }
+          Update: {
+            owner_id?: string
+            chat_id?: number
+            self_id?: number
+            title?: string
+            created_at?: string
+          }
+          Relationships: []
+        }
+        telegram_inbox: {
+          Row: {
+            update_id: number
+            owner_id: string
+            payload: Json
+            created_at: string
+          }
+          Insert: {
+            update_id: number
+            owner_id: string
+            payload: Json
+            created_at?: string
+          }
+          Update: {
+            update_id?: number
+            owner_id?: string
+            payload?: Json
+            created_at?: string
+          }
+          Relationships: []
+        }
+        telegram_messages: {
+          Row: {
+            chat_id: number
+            message_id: number
+            owner_id: string
+          }
+          Insert: {
+            chat_id: number
+            message_id: number
+            owner_id: string
+          }
+          Update: {
+            chat_id?: number
+            message_id?: number
+            owner_id?: string
+          }
+          Relationships: []
+        }
+        telegram_pairings: {
+          Row: {
+            owner_id: string
+            code: string
+            expires_at: string
+            local_code: string
+          }
+          Insert: {
+            owner_id: string
+            code?: string
+            expires_at?: string
+            local_code: string
+          }
+          Update: {
+            owner_id?: string
+            code?: string
+            expires_at?: string
+            local_code?: string
+          }
+          Relationships: []
+        }
+        telegram_webhook_config: {
+          Row: {
+            id: boolean
+            secret: string
+            configured: boolean
+          }
+          Insert: {
+            id?: boolean
+            secret?: string
+            configured?: boolean
+          }
+          Update: {
+            id?: boolean
+            secret?: string
+            configured?: boolean
+          }
+          Relationships: []
+        }
       }
       Views: { [_ in never]: never }
       Functions: { [_ in never]: never }

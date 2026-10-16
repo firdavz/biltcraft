@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@biltme/backend';
 import { bilt } from './bilt';
 
 let botUsername = '';
@@ -10,11 +11,11 @@ async function ensureSession(): Promise<void> {
   if (!sessionReady) {
     sessionReady = (async () => {
       const { data, error } = await bilt.auth.getSession();
-      if (error) throw new TelegramError('Could not connect. Please try again.');
+      if (error) throw new TelegramError(error.message);
       if (!data.session) {
         const signedIn = await bilt.auth.signInAnonymously();
-        if (signedIn.error || !signedIn.data.session)
-          throw new TelegramError('Could not connect. Please try again.');
+        if (signedIn.error) throw new TelegramError(signedIn.error.message);
+        if (!signedIn.data.session) throw new TelegramError('Could not connect. Please try again.');
       }
     })().catch((error: unknown) => {
       sessionReady = null;
@@ -63,7 +64,19 @@ export async function telegram<T>(
     body: multipart ? body : { method, body },
     timeout: multipart ? 120000 : 20000,
   });
-  if (error || !data) throw new TelegramError('Could not reach Telegram. Please try again.');
+  if (error instanceof FunctionsHttpError) {
+    const response: unknown = await error.context.json();
+    const description =
+      typeof response === 'object' &&
+      response !== null &&
+      'description' in response &&
+      typeof response.description === 'string'
+        ? response.description
+        : undefined;
+    throw new TelegramError(description || error.message);
+  }
+  if (error) throw new TelegramError(error.message);
+  if (!data) throw new TelegramError('Could not reach Telegram. Please try again.');
   if (!data.ok)
     throw new TelegramError(data.description || 'Telegram could not complete that request.');
   return data.result;
