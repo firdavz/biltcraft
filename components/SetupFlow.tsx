@@ -244,11 +244,6 @@ export function SetupFlow() {
       )}
       <View style={{ marginTop: step === 0 ? 44 : 20, marginBottom: 34 }}>
         <GradientTitle size={38}>{titles[step]}</GradientTitle>
-        {step === 0 && (
-          <Text style={[ui.copy, { marginTop: 20, maxWidth: 280 }]}>
-            Choose a habit, send daily photo proof, and let a friend keep you accountable.
-          </Text>
-        )}
       </View>
       {step === 0 && (
         <TextField>
@@ -334,16 +329,8 @@ export function SetupFlow() {
       )}
       {step === 6 && (
         <View style={{ gap: 20 }}>
-          <GuideStep number={1} title="Create a Telegram group">
-            <Text style={ui.copy}>
-              Add yourself and at least one friend who will check your photo proof. Use a group that
-              is not already connected to someone else’s Habbit.
-            </Text>
-          </GuideStep>
-          <GuideStep number={2} title="Add the Habbit bot">
-            <Text style={ui.copy}>
-              Tap below, then choose the group you just created in Telegram.
-            </Text>
+          <GuideStep number={1} title="Create a group with a friend" />
+          <GuideStep number={2} title="Add the bot to that group">
             <ActionButton
               busy={busy}
               disabled={!telegramConfigured()}
@@ -360,11 +347,8 @@ export function SetupFlow() {
               Add bot to my group
             </ActionButton>
           </GuideStep>
-          <GuideStep number={3} title="Send your connection message">
-            <Text style={ui.copy}>
-              In that group, send the message below from your own Telegram account—not in a private
-              chat with the bot. Then come back here.
-            </Text>
+          <GuideStep number={3} title="Paste the command in your group">
+            <Text style={ui.copy}>Send it yourself, then return here.</Text>
             <View style={[ui.panel, { padding: 14, gap: 12 }]}>
               <Text style={styles.fieldLabel}>Your connection code</Text>
               <View style={[ui.row, { gap: 12, alignItems: 'flex-start' }]}>
@@ -408,7 +392,7 @@ export function SetupFlow() {
                   <Copy size={16} color={colors.accent} />
                 )}
                 <Button.Label style={{ color: colors.accent }}>
-                  {copiedValue === command ? 'Message copied' : 'Copy full message'}
+                  {copiedValue === command ? 'Copied' : 'Copy command'}
                 </Button.Label>
               </Button>
             </View>
@@ -443,9 +427,7 @@ export function SetupFlow() {
                 </Text>
               )}
               <Text style={ui.copy}>
-                {tested
-                  ? 'All set. Tap “Start my challenge” below.'
-                  : 'Send a test message below. Once it arrives in Telegram, start your challenge.'}
+                {tested ? 'Ready to start.' : 'Send a test message to finish.'}
               </Text>
               <View style={{ gap: 8 }}>
                 <Button
@@ -484,9 +466,7 @@ export function SetupFlow() {
               </View>
             </View>
           ) : (
-            <Text style={[ui.copy, { textAlign: 'center' }]}>
-              Send your connection message in Telegram, then return here to finish.
-            </Text>
+            <Text style={[ui.copy, { textAlign: 'center' }]}>Waiting for your group…</Text>
           )}
           <Button
             variant="ghost"
@@ -532,9 +512,9 @@ export function SetupFlow() {
       )}
       {step === 0 && (
         <View style={styles.promise}>
-          <GuideStep number={1} title="Choose one habit and a daily alarm" />
-          <GuideStep number={2} title="Connect a Telegram group with a friend" />
-          <GuideStep number={3} title="Take a photo each day for your friend to approve" />
+          <GuideStep number={1} title="Choose a habit" />
+          <GuideStep number={2} title="Connect a friend on Telegram" />
+          <GuideStep number={3} title="Send daily photo proof" />
         </View>
       )}
     </Screen>
