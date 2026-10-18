@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { Camera, RefreshCw, X } from 'lucide-react-native';
@@ -8,13 +8,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { goBackOrReplace } from '@/lib/navigation';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { action, sendProof, reportError } from '@/lib/habbit-engine';
+import { PhotoSendDiagnostic } from '@/components/PhotoSendDiagnostic';
+import { PhotoSendError, recordPhotoFailure } from '@/lib/photo-diagnostics';
 import { currentDay, useHabbit } from '@/lib/habbit-store';
 import { Screen, ActionButton, ErrorNotice, SectionLabel } from '@/components/HabbitUI';
 import * as Haptics from 'expo-haptics';
 
+async function captureFailure(code: string, message: string) {
+  const failure = new PhotoSendError('capture', code, message);
+  await recordPhotoFailure(failure);
+  reportError(failure);
+}
+
 export default function ProofCamera() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const camera = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<'front' | 'back'>('back');
@@ -25,16 +34,24 @@ export default function ProofCamera() {
   const started = useHabbit((s) => s.started);
   const days = useHabbit((s) => s.days);
   const day = currentDay(days);
+  const diagnostic = useHabbit((s) => s.photoDiagnostic);
+  const error = useHabbit((s) => s.error);
+  const photoStage = useHabbit((s) => s.photoStage);
+  const deliveries = useHabbit((s) => s.deliveries);
+  const deliveryBlocked = Boolean(day && deliveries[`proof:${day.day}`]);
 
   async function capture() {
     if (!ready || capturing) return;
     setCapturing(true);
+    useHabbit.setState({ photoStage: 'capture' });
     try {
       const photo = await camera.current?.takePictureAsync({ quality: 0.5, imageType: 'jpg' });
-      if (photo) setProof({ uri: photo.uri });
-    } catch (e) {
-      reportError(e);
+      if (!photo?.uri) throw new Error('No photo returned');
+      setProof({ uri: photo.uri });
+    } catch {
+      await captureFailure('PHOTO_CAPTURE_FAILED', 'The camera could not take a photo. Try again.');
     } finally {
+      useHabbit.setState({ photoStage: null });
       setCapturing(false);
     }
   }
@@ -45,6 +62,7 @@ export default function ProofCamera() {
         <View style={styles.center}>
           <Camera color={colors.accent} size={36} />
           <Text style={styles.title}>No proof due.</Text>
+          <PhotoSendDiagnostic />
           <ActionButton onPress={() => goBackOrReplace('/')}>Back to today</ActionButton>
         </View>
       </Screen>
@@ -60,14 +78,20 @@ export default function ProofCamera() {
           </Text>
           <ActionButton
             onPress={() => {
-              void requestPermission().then((p) => {
-                if (!p.granted)
-                  reportError(
-                    new Error(
+              void requestPermission()
+                .then(async (p) => {
+                  if (!p.granted)
+                    await captureFailure(
+                      'PHOTO_PERMISSION_DENIED',
                       'Camera access is off. Allow it in your device settings, then try again.',
-                    ),
-                  );
-              });
+                    );
+                })
+                .catch(() =>
+                  captureFailure(
+                    'PHOTO_PERMISSION_FAILED',
+                    'Camera access could not be requested. Check your device settings.',
+                  ),
+                );
             }}
           >
             Allow camera
@@ -75,7 +99,8 @@ export default function ProofCamera() {
           <Button variant="ghost" onPress={() => goBackOrReplace('/')}>
             <Button.Label>Not now</Button.Label>
           </Button>
-          <ErrorNotice />
+          {!diagnostic && <ErrorNotice />}
+          <PhotoSendDiagnostic />
         </View>
       </Screen>
     );
@@ -96,11 +121,13 @@ export default function ProofCamera() {
           facing={facing}
           mode="picture"
           onCameraReady={() => setReady(true)}
-          onMountError={() =>
-            reportError(
-              new Error('Your camera could not open. Check its permission and try again.'),
-            )
-          }
+          onMountError={() => {
+            setReady(false);
+            void captureFailure(
+              'PHOTO_CAMERA_OPEN_FAILED',
+              'Your camera could not open. Check its permission and try again.',
+            );
+          }}
         />
       )}
       <View style={[styles.top, { top: insets.top + 12 }]}>
@@ -131,11 +158,20 @@ export default function ProofCamera() {
         )}
       </View>
       <View style={[styles.controls, { paddingBottom: insets.bottom + 20 }]}>
-        <ErrorNotice />
+        {(diagnostic || error || photoStage) && (
+          <ScrollView
+            style={{ maxHeight: height * 0.3, flexGrow: 0 }}
+            contentContainerStyle={{ gap: 12 }}
+          >
+            {!diagnostic && <ErrorNotice />}
+            <PhotoSendDiagnostic />
+          </ScrollView>
+        )}
         {proof ? (
           <>
             <ActionButton
               busy={busy}
+              disabled={deliveryBlocked}
               onPress={() => {
                 void action(async () => {
                   await sendProof(proof.uri);

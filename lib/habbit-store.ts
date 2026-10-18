@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 export type DayStatus = 'WAITING' | 'PROOF_WINDOW' | 'VOTING' | 'APPROVED' | 'REJECTED' | 'MISSED';
@@ -24,7 +25,17 @@ export type Day = {
   autoApproved?: boolean;
 };
 export type Delivery = { status: 'attempting' | 'sent' | 'uncertain'; text: string };
+export type PhotoStage = 'capture' | 'upload' | 'telegram';
+export type PhotoDiagnostic = {
+  stage: PhotoStage;
+  code: string;
+  message: string;
+  delivery: 'not_sent' | 'unknown' | 'sent';
+  recordedAt: string;
+  platform: string;
+};
 export type Saved = {
+  photoDiagnostic: PhotoDiagnostic | null;
   draft: HabitConfig;
   setupStep: number;
   code: string;
@@ -48,6 +59,7 @@ const defaults: HabitConfig = {
 };
 function fresh(): Saved {
   return {
+    photoDiagnostic: null,
     draft: { ...defaults },
     setupStep: 0,
     code: `HB${Math.floor(1000 + Math.random() * 9000)}`,
@@ -62,12 +74,18 @@ function fresh(): Saved {
 }
 const key = 'habbit.v1';
 let writes = Promise.resolve();
-export const useHabbit = create<Saved & { hydrated: boolean; error: string | null; busy: boolean }>(
-  () => ({ ...fresh(), hydrated: false, error: null, busy: false }),
-);
+export const useHabbit = create<
+  Saved & { hydrated: boolean; error: string | null; busy: boolean; photoStage: PhotoStage | null }
+>(() => ({ ...fresh(), hydrated: false, error: null, busy: false, photoStage: null }));
 export async function save(patch: Partial<Saved>) {
   useHabbit.setState(patch);
-  const { hydrated: _hydrated, error: _error, busy: _busy, ...value } = useHabbit.getState();
+  const {
+    hydrated: _hydrated,
+    error: _error,
+    busy: _busy,
+    photoStage: _photoStage,
+    ...value
+  } = useHabbit.getState();
   writes = writes
     .catch(() => undefined)
     .then(() => AsyncStorage.setItem(key, JSON.stringify(value)));
@@ -84,7 +102,21 @@ export async function hydrate() {
         item.status === 'attempting' ? { ...item, status: 'uncertain' as const } : item,
       ]),
     );
-    await save({ deliveries });
+    const interruptedPhoto = Object.entries(useHabbit.getState().deliveries).some(
+      ([id, item]) => id.startsWith('proof:') && item.status === 'attempting',
+    );
+    const photoDiagnostic: PhotoDiagnostic | null = interruptedPhoto
+      ? {
+          stage: 'upload',
+          code: 'PHOTO_SEND_INTERRUPTED',
+          message:
+            'The app closed while uploading or sending. Check your Telegram group; do not resend.',
+          delivery: 'unknown',
+          recordedAt: new Date().toISOString(),
+          platform: Platform.OS,
+        }
+      : useHabbit.getState().photoDiagnostic;
+    await save({ deliveries, photoDiagnostic });
     useHabbit.setState({ hydrated: true });
   } catch {
     useHabbit.setState({
@@ -96,7 +128,7 @@ export async function hydrate() {
 export async function resetApp() {
   await writes.catch(() => undefined);
   await AsyncStorage.removeItem(key);
-  useHabbit.setState({ ...fresh(), hydrated: true, error: null, busy: false });
+  useHabbit.setState({ ...fresh(), hydrated: true, error: null, busy: false, photoStage: null });
 }
 export function buildDays(config: HabitConfig, first = Date.now()) {
   const start = new Date(first);

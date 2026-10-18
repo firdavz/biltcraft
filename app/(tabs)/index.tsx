@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from '@/components/HabbitUI';
 import { GradientTitle } from '@/components/GradientTitle';
 import { SetupFlow } from '@/components/SetupFlow';
+import { PhotoSendDiagnostic } from '@/components/PhotoSendDiagnostic';
 import { useHabbit, currentDay, finished, save } from '@/lib/habbit-store';
 import {
   action,
@@ -172,6 +173,7 @@ export default function Today() {
           </View>
           <View style={{ gap: 16 }}>
             <ErrorNotice />
+            <PhotoSendDiagnostic />
             <Button
               variant="secondary"
               style={{
@@ -233,6 +235,7 @@ export default function Today() {
         </Button.Label>
       </Button>
       <ResetButton />
+      <PhotoSendDiagnostic />
       {demoOpen && (
         <DemoControls
           now={now}

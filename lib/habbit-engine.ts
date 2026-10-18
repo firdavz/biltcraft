@@ -22,6 +22,7 @@ import {
 import { findConnection, checkGroup, appendMedia, syncConnection } from './habbit-connection';
 import { approvedMessage, shameMessage, kickoff } from './habbit-copy';
 import { scheduleAlarms, cancelAlarms } from './habbit-notifications';
+import { PhotoSendError, recordPhotoFailure } from './photo-diagnostics';
 
 let queue = Promise.resolve();
 export function serial<T>(work: () => Promise<T>): Promise<T> {
@@ -222,16 +223,39 @@ export async function startChallenge() {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
 export async function sendProof(uri: string) {
+  useHabbit.setState({ photoStage: 'upload' });
+  try {
+    await sendPhotoProof(uri);
+  } catch (error) {
+    const failure =
+      error instanceof PhotoSendError
+        ? error
+        : new PhotoSendError(
+            'upload',
+            'PHOTO_SEND_CHECK_FAILED',
+            'The photo send could not start. Check your connection and try again.',
+          );
+    await recordPhotoFailure(failure);
+    throw failure;
+  } finally {
+    useHabbit.setState({ photoStage: null });
+  }
+}
+async function sendPhotoProof(uri: string) {
   await reconcile();
   const s = useHabbit.getState();
   const day = currentDay(s.days);
   if (!day || day.status !== 'PROOF_WINDOW' || Date.now() >= day.proofDeadline)
-    throw new Error('Your proof window has ended.');
-  if (!s.group) throw new Error('Reconnect your witness group.');
+    throw new PhotoSendError('upload', 'PHOTO_WINDOW_ENDED', 'Your proof window has ended.');
+  if (!s.group)
+    throw new PhotoSendError('upload', 'PHOTO_GROUP_MISSING', 'Reconnect your witness group.');
   const key = `proof:${day.day}`;
   if (s.deliveries[key])
-    throw new Error(
-      'This proof may already have been sent. Check Telegram before doing anything else.',
+    throw new PhotoSendError(
+      'telegram',
+      'PHOTO_ALREADY_ATTEMPTED',
+      'This proof may already be in your group. Check Telegram; do not resend.',
+      'unknown',
     );
   const form = new FormData();
   form.append('chat_id', String(s.group.id));
@@ -250,17 +274,29 @@ export async function sendProof(uri: string) {
       ],
     }),
   );
-  await appendMedia(form, 'photo', uri);
+  try {
+    await appendMedia(form, 'photo', uri);
+  } catch {
+    throw new PhotoSendError(
+      'upload',
+      'PHOTO_READ_FAILED',
+      'The captured photo could not be prepared. Retake it and try again.',
+    );
+  }
   if (Date.now() >= day.proofDeadline) {
     await reconcile();
-    throw new Error('Your proof window has ended.');
+    throw new PhotoSendError('upload', 'PHOTO_WINDOW_ENDED', 'Your proof window has ended.');
   }
   await save({ deliveries: { ...s.deliveries, [key]: { status: 'attempting', text: '' } } });
+  let confirmed = false;
   try {
     const message = s.localDemo
       ? { message_id: day.day }
       : await telegram<TelegramMessage>('sendPhoto', form);
+    confirmed = true;
+    useHabbit.setState({ photoStage: 'telegram' });
     await save({
+      photoDiagnostic: null,
       days: useHabbit.getState().days.map((d) =>
         d.day === day.day
           ? {
@@ -275,15 +311,22 @@ export async function sendProof(uri: string) {
     });
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   } catch (e) {
+    const failure =
+      e instanceof PhotoSendError
+        ? e
+        : new PhotoSendError(
+            confirmed ? 'telegram' : 'upload',
+            confirmed ? 'PHOTO_CONFIRMATION_FAILED' : 'PHOTO_UPLOAD_UNCONFIRMED',
+            confirmed
+              ? 'The photo reached Telegram, but confirmation could not be saved. Check your group; do not resend.'
+              : 'The connection was lost while uploading or sending. Check Telegram; do not resend.',
+            confirmed ? 'sent' : 'unknown',
+          );
     const deliveries = { ...useHabbit.getState().deliveries };
-    if (e instanceof TelegramError) delete deliveries[key];
-    else deliveries[key] = { status: 'uncertain', text: '' };
+    if (failure.delivery === 'not_sent') delete deliveries[key];
+    else deliveries[key] = { status: failure.delivery === 'sent' ? 'sent' : 'uncertain', text: '' };
     await save({ deliveries });
-    throw e instanceof TelegramError
-      ? e
-      : new Error(
-          'Proof delivery is uncertain. Check Telegram; we will not risk sending a duplicate.',
-        );
+    throw failure;
   }
 }
 export async function openLocalDemo() {

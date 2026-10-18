@@ -75,7 +75,9 @@ export async function appendMedia(form: FormData, field: 'photo', uri: string) {
   const type = 'image/jpeg';
   if (Platform.OS === 'web') {
     const response = await fetch(uri);
+    if (!response.ok) throw new Error('The captured photo could not be read.');
     const blob = await response.blob();
+    if (!blob.size) throw new Error('The captured photo is empty.');
     form.append(field, blob, name);
   } else {
     // React Native accepts URI file descriptors, but the DOM FormData overloads only accept Blob.
