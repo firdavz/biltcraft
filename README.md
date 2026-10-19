@@ -1,158 +1,35 @@
-# Welcome to your Bilt project
+# Habbit — auth agent handoff
 
-[![Built with Bilt](https://img.shields.io/endpoint?url=https%3A%2F%2Fapp.bilt.me%2Fapi%2Fbadge)](https://bilt.me)
+Use this context to propose an authentication and user-database plan. Do not implement yet; I will bring your steps back to the app builder.
 
-## Project info
+## App
 
-**Project URL**: https://app.bilt.me/agent/7c44c407-c8b5-44fb-8dc4-64f7fdb2ef5f
+Habbit is a single-habit accountability app for iOS, Android and web. Users choose a habit and schedule, connect a Telegram witness group, take camera-only photo proof, and let the group vote. The app tracks progress, deadlines and shame messages. Keep its existing dark navy/violet design and very short onboarding. The goal is to launch it free for users, without subscriptions.
 
-**Project ID**: `7c44c407-c8b5-44fb-8dc4-64f7fdb2ef5f`
+## How it is built
 
-## How can I edit this app?
+- TypeScript, Expo SDK 57, React Native 0.86, Expo Router.
+- HeroUI Native + Uniwind for UI; Zustand + AsyncStorage for local state.
+- Expo Camera for proof, Expo Notifications for reminders.
+- Main screens: `app/(tabs)/index.tsx`, `app/(tabs)/progress.tsx`, `app/camera.tsx`.
+- State and logic: `lib/habbit-store.ts`, `lib/habbit-engine.ts`, `components/HabbitRuntime.tsx`.
 
-There are several ways of editing your application.
+## Existing backend
 
-**Use Bilt**
+Bilt Cloud is already connected, with PostgreSQL, auth and Deno edge functions. The app uses `@biltme/backend` (Supabase-compatible API) through the existing `bilt` client in `lib/bilt.ts`. Do not create a second client.
 
-Simply visit your [Bilt Project](https://app.bilt.me/agent/7c44c407-c8b5-44fb-8dc4-64f7fdb2ef5f) and start sending messages. Describe what you want to change, add, or fix in natural language.
+The app currently creates a persisted **anonymous auth session** for Telegram access. There is no permanent-account sign-in UI. Habit settings and progress live locally in AsyncStorage, not in a synced user database.
 
-Changes made via Bilt are instant - just send a message and your app updates.
+Telegram uses one shared bot with its token stored only on the server. The authenticated `telegram` function checks each user's group/message permissions. The secret-validated `telegram-events` webhook routes events into per-user inboxes; the app pulls its own events. Pairing codes expire, and each group supports one active habit connection.
 
-**Use your preferred IDE**
+Existing tables include `telegram_connections`, `telegram_pairings`, `telegram_inbox`, `telegram_messages`, `telegram_webhook_config` and legacy `telegram_bot_access`. Connection/event data is accessed through server functions; protected tables are not generally client-readable. Schema types are generated in `lib/database.types.ts`—do not edit them manually. Inspect the live schema and deployed functions before changing them; their source is not stored in this repository.
 
-If you want to work locally using your own IDE, you can export the source code from Bilt and make changes directly.
+Relevant integration files: `lib/telegram.ts`, `lib/habbit-connection.ts`, `lib/bilt.ts`.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## What I need from you
 
-Follow these steps:
+Propose the sign-in flow, user-owned database tables, access rules, and migration steps for adding recoverable accounts and syncing habits/progress across devices. Prefer email + 6-digit code unless we choose another method. Preserve existing guest data and Telegram ownership; prefer upgrading the anonymous account in place so its user ID stays the same. Explain account conflicts, sign-out behavior and account deletion.
 
-```sh
-# Step 1: Export and clone your Bilt project.
-# (Download source from Bilt or connect to your git repo)
-git clone <YOUR_GIT_URL>
+Keep secrets server-side and enforce user isolation on every read/write. Use the auth service's users, not a custom password/user store. Confirm the backend choice before replacing any existing integration. Photo storage in the app is not yet agreed; proof is currently sent to Telegram.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm install
-
-# Step 4: Start the Expo development server.
-npx expo start
-```
-
-Scan the QR code with Expo Go on your phone to see your app running locally.
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- React Native
-- Expo
-- TypeScript
-- AsyncStorage (local data persistence)
-- Expo Router (navigation)
-
-All generated automatically by Bilt from your natural language instructions.
-
-## How can I test this project?
-
-**Option 1: Preview in Bilt (Recommended)**
-
-Open your [Bilt Project](https://app.bilt.me/agent/7c44c407-c8b5-44fb-8dc4-64f7fdb2ef5f) and use the built-in preview.
-
-Open **Deploy & Share** to create a revocable preview link or build the app on your iPhone.
-
-**Option 2: Run Locally**
-
-```sh
-npm install
-npx expo start
-```
-
-Then scan the QR code with Expo Go.
-
-## How can I deploy this project?
-
-Open your [Bilt Project](https://app.bilt.me/agent/7c44c407-c8b5-44fb-8dc4-64f7fdb2ef5f), select **Deploy & Share**, then choose **Publish to web**, **Release on App Store**, or **Release on Play Store**.
-
-### Deploy with Bilt
-
-Publishing to web creates a public, installable web app at its own URL. Bilt also guides you through preparing native releases for the App Store and Play Store.
-
-## How can I make changes to my app?
-
-**Via Bilt (Easiest)**
-
-Visit your [Bilt Project](https://app.bilt.me/agent/7c44c407-c8b5-44fb-8dc4-64f7fdb2ef5f) and send a message describing what you want:
-
-- "Add a dark mode toggle"
-- "Change the button color to blue"
-- "Add a new screen for user settings"
-- "Fix the navigation bar spacing"
-
-Bilt understands natural language and updates your app automatically.
-
-**Via Code**
-
-Export the source, make changes in your IDE, and test locally with `npx expo start`.
-
-## Can I use this with the MCP protocol?
-
-Yes! Bilt is available as a remote MCP server at `https://mcp.bilt.me/mcp`.
-
-Connect any MCP-compatible AI agent (Claude Desktop, OpenClaw, etc.) to programmatically build and modify mobile apps.
-
-**Example MCP integration:**
-
-```json
-{
-  "mcpServers": {
-    "bilt": {
-      "transport": {
-        "type": "sse",
-        "url": "https://mcp.bilt.me/mcp/sse",
-        "headers": {
-          "Authorization": "Bearer YOUR_API_KEY"
-        }
-      }
-    }
-  }
-}
-```
-
-Read more:
-
-- [Bilt MCP Documentation](https://bilt.me/docs)
-- [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.buildingapplications%2Fmcp/versions/latest)
-
-## Need help?
-
-- 📚 [Bilt Documentation](https://bilt.me/docs)
-- 💬 [Discord Community](https://discord.gg/3FqNgmSYdZ)
-- 🐦 [Twitter Updates](https://twitter.com/biltmeanapp)
-- 📧 Email: support@bilt.me
-
----
-
-<div align="center">
-
-**Built by AI. No code required.** ✨
-
-[Try Bilt](https://bilt.me) • [View Docs](https://bilt.me/docs) • [Docs MCP Server](https://bilt.me/docs/mcp)
-
-</div>
+Known gaps: no account recovery or cross-device habit sync; scheduled deadline/shame delivery while the app is closed is not implemented. Permanent auth alone will not solve background scheduling. No payment integration is needed.
