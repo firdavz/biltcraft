@@ -15,6 +15,7 @@ import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from '@/co
 import { GradientTitle } from '@/components/GradientTitle';
 import { SetupFlow } from '@/components/SetupFlow';
 import { PhotoSendDiagnostic } from '@/components/PhotoSendDiagnostic';
+import { AccountActions } from '@/components/AccountActions';
 import { useHabbit, currentDay, finished, save } from '@/lib/habbit-store';
 import {
   action,
@@ -365,6 +366,7 @@ function ResetButton() {
           <Button.Label>Reset app</Button.Label>
         </Button>
       )}
+      <AccountActions />
     </View>
   );
 }

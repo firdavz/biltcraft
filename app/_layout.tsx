@@ -11,6 +11,10 @@ import {
 } from '@expo-google-fonts/inter';
 import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans';
 import { HabbitRuntime } from '@/components/HabbitRuntime';
+import { AuthRuntime } from '@/components/AuthRuntime';
+import { useAuth, realSession } from '@/lib/auth-state';
+import { colors } from '@/lib/habbit-theme';
+import { useAuthCopy } from '@/lib/auth-copy';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
@@ -54,6 +58,11 @@ Uniwind.setTheme('dark');
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const session = useAuth((s) => s.session);
+  const accessReady = useAuth((s) => s.accessReady);
+  const paused = useAuth((s) => s.paused);
+  const authorized = realSession(session) && accessReady;
+  const copy = useAuthCopy();
   const [loaded, error] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -147,14 +156,29 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <HeroUINativeProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ title: 'Habbit', headerShown: false }} />
-          <Stack.Screen
-            name="camera"
-            options={{ headerShown: false, presentation: 'fullScreenModal' }}
-          />
+        <AuthRuntime />
+        <Stack
+          screenOptions={{
+            contentStyle: { backgroundColor: colors.background },
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.foreground,
+            headerTitleStyle: { fontFamily: 'Inter_600SemiBold' },
+          }}
+        >
+          <Stack.Protected guard={authorized}>
+            <Stack.Screen name="(tabs)" options={{ title: 'Habbit', headerShown: false }} />
+            <Stack.Screen
+              name="camera"
+              options={{ headerShown: false, presentation: 'fullScreenModal' }}
+            />
+          </Stack.Protected>
+          <Stack.Protected guard={!authorized}>
+            <Stack.Screen name="signin" options={{ headerShown: false }} />
+          </Stack.Protected>
+          <Stack.Screen name="terms" options={{ title: copy.terms }} />
+          <Stack.Screen name="privacy" options={{ title: copy.privacy }} />
         </Stack>
-        <HabbitRuntime />
+        {authorized && !paused && <HabbitRuntime />}
         <InstallPrompt />
       </HeroUINativeProvider>
     </GestureHandlerRootView>

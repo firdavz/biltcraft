@@ -8,6 +8,10 @@ import type { PropsWithChildren } from 'react';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from './HabbitUI';
 import { GradientTitle } from './GradientTitle';
 import { TimePicker } from './TimePicker';
+import { AccountActions } from './AccountActions';
+import { useAuthCopy } from '@/lib/auth-copy';
+import { useAuth } from '@/lib/auth-state';
+import { bilt } from '@/lib/bilt';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { save, useHabbit, type HabitConfig } from '@/lib/habbit-store';
 import { action, startChallenge, reportError, openLocalDemo } from '@/lib/habbit-engine';
@@ -42,6 +46,8 @@ function update(patch: Partial<HabitConfig>) {
   void save({ draft: { ...useHabbit.getState().draft, ...patch } }).catch(reportError);
 }
 export function SetupFlow() {
+  const copy = useAuthCopy();
+  const switched = useAuth((s) => s.switched);
   const step = useHabbit((s) => s.setupStep);
   const draft = useHabbit((s) => s.draft);
   const group = useHabbit((s) => s.group);
@@ -172,12 +178,24 @@ export function SetupFlow() {
       );
       return;
     }
-    void save({
-      setupStep: step + 1,
-      draft: { ...draft, name: draft.name.trim(), habit: draft.habit.trim() },
-    }).catch(reportError);
-    useHabbit.setState({ error: null });
-    void Haptics.selectionAsync();
+    void action(async () => {
+      if (step === 0) {
+        const id = useAuth.getState().session?.user.id;
+        if (id) {
+          const result = await bilt
+            .from('profiles')
+            .update({ display_name: draft.name.trim() })
+            .eq('id', id);
+          if (result.error) throw new Error(result.error.message);
+        }
+      }
+      await save({
+        setupStep: step + 1,
+        draft: { ...draft, name: draft.name.trim(), habit: draft.habit.trim() },
+      });
+      if (step === 0) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      else void Haptics.selectionAsync();
+    });
   };
   return (
     <Screen
@@ -185,7 +203,9 @@ export function SetupFlow() {
         <>
           <ErrorNotice />
           {step < 6 ? (
-            <ActionButton onPress={next}>Continue</ActionButton>
+            <ActionButton onPress={next} busy={busy}>
+              Continue
+            </ActionButton>
           ) : (
             <ActionButton
               busy={busy}
@@ -199,7 +219,7 @@ export function SetupFlow() {
           )}
           <Text style={styles.footerCopy}>
             {step === 0
-              ? 'No account. Just your word.'
+              ? copy.setupFooter
               : step === 6
                 ? 'Your proof goes to this group every day.'
                 : 'One habit. One day at a time.'}
@@ -215,6 +235,7 @@ export function SetupFlow() {
         />
         <Text style={styles.step}>{step + 1} / 7</Text>
       </View>
+      {switched && <Text style={[ui.copy, { marginTop: 24 }]}>{copy.accountSwitched}</Text>}
       <View style={styles.steps}>
         {Array.from({ length: 7 }, (_, i) => (
           <View
@@ -517,6 +538,9 @@ export function SetupFlow() {
           <GuideStep number={3} title="Send daily photo proof" />
         </View>
       )}
+      <View style={{ marginTop: 24 }}>
+        <AccountActions compact />
+      </View>
     </Screen>
   );
 }

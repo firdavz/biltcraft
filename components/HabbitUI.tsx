@@ -190,6 +190,7 @@ export function ErrorNotice() {
   );
 }
 export const ui = StyleSheet.create({
+  // eslint-disable-next-line react-native/no-unused-styles -- Exported shared style; consumers may use it outside this module.
   title: {
     fontFamily: headingFont,
     color: colors.foreground,
@@ -197,7 +198,9 @@ export const ui = StyleSheet.create({
     lineHeight: 46,
     letterSpacing: -1.2,
   },
+  // eslint-disable-next-line react-native/no-unused-styles -- Used by sign-in, legal screens, AccountActions and other external consumers.
   copy: { fontFamily: bodyFont, color: colors.muted, fontSize: 14, lineHeight: 23 },
+  // eslint-disable-next-line react-native/no-unused-styles -- Used by SetupFlow and tab screens outside this module.
   panel: {
     backgroundColor: 'rgba(255,255,255,0.03)',
     borderColor: colors.border,
@@ -205,7 +208,9 @@ export const ui = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
   },
+  // eslint-disable-next-line react-native/no-unused-styles -- Used by SetupFlow and the progress screen outside this module.
   divider: { height: 1, backgroundColor: colors.border },
+  // eslint-disable-next-line react-native/no-unused-styles -- Used by SetupFlow and tab screens outside this module.
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });
 const styles = StyleSheet.create({

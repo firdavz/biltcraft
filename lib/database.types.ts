@@ -7,6 +7,27 @@ declare module '@biltme/backend' {
   interface Database {
     public: {
       Tables: {
+        profiles: {
+          Row: {
+            id: string
+            display_name: string | null
+            locale: 'en' | 'ru'
+            created_at: string
+          }
+          Insert: {
+            id: string
+            display_name?: string | null
+            locale?: 'en' | 'ru'
+            created_at?: string
+          }
+          Update: {
+            id?: string
+            display_name?: string | null
+            locale?: 'en' | 'ru'
+            created_at?: string
+          }
+          Relationships: []
+        }
         telegram_bot_access: {
           Row: {
             id: boolean

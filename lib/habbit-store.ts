@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
+import { z } from 'zod';
 
 export type DayStatus = 'WAITING' | 'PROOF_WINDOW' | 'VOTING' | 'APPROVED' | 'REJECTED' | 'MISSED';
 export type HabitConfig = {
@@ -72,6 +73,68 @@ function fresh(): Saved {
     notificationsReady: false,
   };
 }
+// Older records may omit newer fields; validate present values and retain fresh defaults.
+const savedSchema = z
+  .object({
+    photoDiagnostic: z
+      .object({
+        stage: z.enum(['capture', 'upload', 'telegram']),
+        code: z.string(),
+        message: z.string(),
+        delivery: z.enum(['not_sent', 'unknown', 'sent']),
+        recordedAt: z.string(),
+        platform: z.string(),
+      })
+      .nullable(),
+    draft: z.object({
+      name: z.string(),
+      gender: z.enum(['He', 'She']),
+      habit: z.string(),
+      totalDays: z.number(),
+      hour: z.number(),
+      minute: z.number(),
+      proofMinutes: z.number(),
+      approvalMinutes: z.number(),
+    }),
+    setupStep: z.number(),
+    code: z.string(),
+    group: z
+      .object({
+        id: z.number(),
+        title: z.string(),
+        memberCount: z.number(),
+        selfId: z.number().nullable(),
+      })
+      .nullable(),
+    started: z.boolean(),
+    localDemo: z.boolean(),
+    days: z.array(
+      z.object({
+        day: z.number(),
+        alarmAt: z.number(),
+        proofDeadline: z.number(),
+        status: z.enum(['WAITING', 'PROOF_WINDOW', 'VOTING', 'APPROVED', 'REJECTED', 'MISSED']),
+        votingDeadline: z.number().optional(),
+        messageId: z.number().optional(),
+        shame: z.string().optional(),
+        autoApproved: z.boolean().optional(),
+      }),
+    ),
+    offset: z.number(),
+    deliveries: z.record(
+      z.string(),
+      z.object({
+        status: z.enum(['attempting', 'sent', 'uncertain']),
+        text: z.string(),
+      }),
+    ),
+    notificationsReady: z.boolean(),
+  })
+  .partial();
+function parseSaved(raw: string): Partial<Saved> {
+  const value: unknown = JSON.parse(raw);
+  return savedSchema.parse(value);
+}
 const key = 'habbit.v1';
 let writes = Promise.resolve();
 export const useHabbit = create<
@@ -94,7 +157,7 @@ export async function save(patch: Partial<Saved>) {
 export async function hydrate() {
   try {
     const raw = await AsyncStorage.getItem(key);
-    if (raw) useHabbit.setState(JSON.parse(raw) as Saved);
+    if (raw) useHabbit.setState(parseSaved(raw));
     // In-flight sends cannot be retried safely after interruption.
     const deliveries = Object.fromEntries(
       Object.entries(useHabbit.getState().deliveries).map(([id, item]) => [
@@ -127,8 +190,38 @@ export async function hydrate() {
 }
 export async function resetApp() {
   await writes.catch(() => undefined);
-  await AsyncStorage.removeItem(key);
+  const owner = await AsyncStorage.getItem('habbit.owner');
+  await AsyncStorage.multiRemove([key, ...(owner ? [`habbit.account.${owner}`] : [])]);
   useHabbit.setState({ ...fresh(), hydrated: true, error: null, busy: false, photoStage: null });
+}
+export async function rememberHabitOwner(userId: string) {
+  if (!(await AsyncStorage.getItem('habbit.owner')))
+    await AsyncStorage.setItem('habbit.owner', userId);
+}
+export async function bindHabitAccount(userId: string, previousSessionId: string | null) {
+  await writes.catch(() => undefined);
+  const storedOwner = await AsyncStorage.getItem('habbit.owner');
+  const previousOwner = storedOwner ?? previousSessionId;
+  if (previousOwner && previousOwner !== userId) {
+    const raw = await AsyncStorage.getItem(key);
+    if (raw) await AsyncStorage.setItem(`habbit.account.${previousOwner}`, raw);
+    const restored = await AsyncStorage.getItem(`habbit.account.${userId}`);
+    useHabbit.setState({
+      ...fresh(),
+      ...(restored ? parseSaved(restored) : {}),
+      hydrated: true,
+      error: null,
+      busy: false,
+      photoStage: null,
+    });
+    await save({});
+  }
+  await AsyncStorage.setItem('habbit.owner', userId);
+  return Boolean(previousOwner && previousOwner !== userId);
+}
+export async function clearDeletedHabit(userId: string) {
+  await resetApp();
+  await AsyncStorage.multiRemove(['habbit.owner', `habbit.account.${userId}`, 'habbit.locale']);
 }
 export function buildDays(config: HabitConfig, first = Date.now()) {
   const start = new Date(first);

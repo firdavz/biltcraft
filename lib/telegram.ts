@@ -1,29 +1,20 @@
 import { FunctionsHttpError } from '@biltme/backend';
 import { bilt } from './bilt';
 import { PhotoSendError } from './photo-diagnostics';
+import { canRunHabit } from './auth-state';
+import { authCopy, useLocale } from './auth-copy';
 
 let botUsername = '';
-let sessionReady: Promise<void> | null = null;
 
 export const telegramConfigured = () =>
   Boolean(process.env.EXPO_PUBLIC_BILT_URL && process.env.EXPO_PUBLIC_BILT_ANON_KEY);
 
 async function ensureSession(): Promise<void> {
-  if (!sessionReady) {
-    sessionReady = (async () => {
-      const { data, error } = await bilt.auth.getSession();
-      if (error) throw new TelegramError(error.message);
-      if (!data.session) {
-        const signedIn = await bilt.auth.signInAnonymously();
-        if (signedIn.error) throw new TelegramError(signedIn.error.message);
-        if (!signedIn.data.session) throw new TelegramError('Could not connect. Please try again.');
-      }
-    })().catch((error: unknown) => {
-      sessionReady = null;
-      throw error;
-    });
-  }
-  await sessionReady;
+  if (!canRunHabit()) throw new TelegramError(authCopy[useLocale.getState().locale].generic);
+  const { data, error } = await bilt.auth.getSession();
+  if (error) throw new TelegramError(error.message);
+  if (!data.session || data.session.user.is_anonymous)
+    throw new TelegramError(authCopy[useLocale.getState().locale].generic);
 }
 
 export async function getBotUsername(): Promise<string> {

@@ -55,6 +55,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
       'expo-notifications',
+      'expo-localization',
       '@react-native-community/datetimepicker',
       ...nativePlugins,
     ],
