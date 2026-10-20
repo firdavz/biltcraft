@@ -20,7 +20,7 @@ import {
 } from './habbit-store';
 import { habitState, saveHabit as save, eachChallenge } from './challenge-context';
 import { checkGroup, appendMedia, syncConnection } from './habbit-connection';
-import { approvedMessage, shameMessage, kickoff } from './habbit-copy';
+import { approvedMessage, shameMessage, kickoff, habitMessage } from './habbit-copy';
 import { scheduleAlarms, cancelAlarms } from './habbit-notifications';
 import { PhotoSendError, recordPhotoFailure } from './photo-diagnostics';
 
@@ -60,7 +60,8 @@ async function deliver(key: string, text: string) {
   if (!state.group) throw new Error('Reconnect your witness group.');
   await save({ deliveries: { ...state.deliveries, [key]: { status: 'attempting', text } } });
   try {
-    if (!state.localDemo) await sendMessage(state.group.id, text);
+    if (!state.localDemo)
+      await sendMessage(state.group.id, habitMessage(state.draft, text), 'HTML');
     await save({
       deliveries: { ...habitState().deliveries, [key]: { status: 'sent', text } },
     });
@@ -170,13 +171,11 @@ async function handleUpdate(update: TelegramUpdate) {
   if (!q) return;
   const s = habitState();
   if (q.message?.chat.id !== s.group?.id) return;
-  const day = s.days.find(
-    (d) =>
-      d.status === 'VOTING' &&
-      q.message !== undefined &&
-      d.messageId === q.message.message_id &&
-      q.message.chat.id === s.group?.id,
-  );
+  // Shared groups deliver votes for every habit. Only the habit that owns this
+  // proof may resolve it or answer the callback, including votes on ended days.
+  const proof = s.days.find((d) => d.messageId === q.message?.message_id);
+  if (!proof) return;
+  const day = proof.status === 'VOTING' ? proof : undefined;
   if (!day || !q.data || ![`approve:${day.day}`, `reject:${day.day}`].includes(q.data)) {
     await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Voting has ended.' });
     return;
@@ -280,8 +279,12 @@ async function sendPhotoProof(uri: string) {
   form.append('chat_id', String(s.group.id));
   form.append(
     'caption',
-    `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}: ${s.draft.habit}. Approve or reject this proof.`,
+    habitMessage(
+      s.draft,
+      `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}. Approve or reject this proof.`,
+    ),
   );
+  form.append('parse_mode', 'HTML');
   form.append(
     'reply_markup',
     JSON.stringify({

@@ -146,5 +146,5 @@ export async function connectionLink(code: string): Promise<string> {
   const username = await getBotUsername();
   return `https://t.me/${username}?startgroup=${encodeURIComponent(code)}`;
 }
-export const sendMessage = (chatId: number, text: string) =>
-  telegram<TelegramMessage>('sendMessage', { chat_id: chatId, text });
+export const sendMessage = (chatId: number, text: string, parseMode?: 'HTML') =>
+  telegram<TelegramMessage>('sendMessage', { chat_id: chatId, text, parse_mode: parseMode });

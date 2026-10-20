@@ -32,7 +32,7 @@ The app now starts with **email + 6-digit code**. Existing anonymous sessions ar
 - `app/terms.tsx` and `app/privacy.tsx` are placeholder legal pages; replace with real legal text before release.
 - Real email delivery, anonymous upgrade, registered-email fallback, cross-device login, native autofill, and destructive deletion need end-to-end testing with accounts controlled by the app owner.
 
-Telegram uses one shared bot with its token stored only on the server. The authenticated `telegram` function checks each user's group/message permissions. The secret-validated `telegram-events` webhook routes events into per-user inboxes; the app pulls its own events. Pairing codes expire, and each group supports one active habit connection.
+Telegram uses one shared bot with its token stored only on the server. The authenticated `telegram` function checks each user's group/message permissions. The secret-validated `telegram-events` webhook routes events into per-user inboxes; the app pulls its own events. Pairing codes expire. Multiple habits belonging to the same account can share one group; proof messages and voting remain habit-specific. Telegram messages highlight the habit and scheduled time with the owner's device timezone.
 
 Existing tables include `telegram_connections`, `telegram_pairings`, `telegram_inbox`, `telegram_messages`, `telegram_webhook_config` and legacy `telegram_bot_access`. Connection/event data is accessed through server functions; protected tables are not generally client-readable. Schema types are generated in `lib/database.types.ts`—do not edit them manually. Inspect the live schema and deployed functions before changing them; their source is not stored in this repository.
 

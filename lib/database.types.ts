@@ -147,16 +147,19 @@ declare module '@biltme/backend' {
             chat_id: number
             message_id: number
             owner_id: string
+            challenge_id: string | null
           }
           Insert: {
             chat_id: number
             message_id: number
             owner_id: string
+            challenge_id?: string | null
           }
           Update: {
             chat_id?: number
             message_id?: number
             owner_id?: string
+            challenge_id?: string | null
           }
           Relationships: []
         }

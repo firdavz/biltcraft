@@ -1,4 +1,14 @@
 import type { HabitConfig } from './habbit-store';
+
+export function escapeTelegramHtml(text: string) {
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+export function habitMessage(c: HabitConfig, text: string) {
+  const time = `${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`;
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `<b>Habit: ${escapeTelegramHtml(c.habit)}</b>\n<b>Time: ${time}</b> (${escapeTelegramHtml(zone)})\n\n${escapeTelegramHtml(text)}`;
+}
 export const quotes = [
   ['Well done is better than well said.', 'Benjamin Franklin'],
   ['Lost time is never found again.', 'Benjamin Franklin'],

@@ -2,6 +2,7 @@ import { Platform, Linking } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { telegram, connectionLink } from './telegram';
 import type { Group } from './habbit-store';
+import { habitMessage } from './habbit-copy';
 import { habitState, saveHabit as save } from './challenge-context';
 
 export async function beginConnection() {
@@ -46,6 +47,10 @@ export async function confirmGroup() {
   const group = await telegram<Group>('confirmGroup', {
     chat_id: state.group.id,
     name: state.draft.name,
+    connection_message: habitMessage(
+      state.draft,
+      `${state.draft.name}'s witnesses, are you ready?`,
+    ),
   });
   await save({ group, connectionStage: 'connected', connectionSince: null, groupRemoved: false });
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
