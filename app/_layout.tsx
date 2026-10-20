@@ -26,6 +26,7 @@ import {
   type ErrorBoundaryProps,
   SplashScreen,
   Stack,
+  usePathname,
 } from 'expo-router';
 
 import { patchExpoGoAssetUrls } from '@/lib/expoGoAssets';
@@ -33,6 +34,7 @@ import { initPostHog } from '@/lib/posthog';
 import { registerServiceWorker } from '@/lib/registerServiceWorker';
 import { reportErrorToParent } from '@/lib/reportPreviewError';
 import { InstallPrompt } from '@/components/InstallPrompt';
+import { useHabbit } from '@/lib/habbit-store';
 
 /**
  * Custom ErrorBoundary that reports React render errors to the parent window (Bilt preview iframe)
@@ -62,6 +64,10 @@ export default function RootLayout() {
   const accessReady = useAuth((s) => s.accessReady);
   const paused = useAuth((s) => s.paused);
   const authorized = realSession(session) && accessReady;
+  const started = useHabbit((s) => s.started);
+  const pathname = usePathname();
+  const showInstallPrompt =
+    authorized && !paused && started && (pathname === '/' || pathname === '/progress');
   const copy = useAuthCopy();
   const [loaded, error] = useFonts({
     Inter_400Regular,
@@ -182,7 +188,7 @@ export default function RootLayout() {
           <Stack.Screen name="privacy" options={{ title: copy.privacy }} />
         </Stack>
         {authorized && !paused && <HabbitRuntime />}
-        <InstallPrompt />
+        <InstallPrompt enabled={showInstallPrompt} />
       </HeroUINativeProvider>
     </GestureHandlerRootView>
   );

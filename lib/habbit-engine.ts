@@ -193,6 +193,7 @@ async function handleUpdate(update: TelegramUpdate) {
 export async function pollUpdates() {
   const state = habitState();
   if (!state.hydrated || state.localDemo || !telegramConfigured()) return;
+  if (!state.started && state.setupStep < 6) return;
   if (
     !state.started &&
     !state.group &&

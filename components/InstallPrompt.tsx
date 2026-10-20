@@ -53,7 +53,7 @@ function isIosSafari(): boolean {
 
 const TAB_BAR_HEIGHT = 49;
 
-export function InstallPrompt() {
+export function InstallPrompt({ enabled }: { enabled: boolean }) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosHint, setShowIosHint] = useState(false);
   const insets = useSafeAreaInsets();
@@ -108,7 +108,7 @@ export function InstallPrompt() {
     AsyncStorage.setItem(IOS_HINT_DISMISSED_KEY, 'true').catch(() => {});
   }, []);
 
-  if (Platform.OS !== 'web') return null;
+  if (Platform.OS !== 'web' || !enabled) return null;
 
   if (installEvent) {
     return (

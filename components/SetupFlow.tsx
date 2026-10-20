@@ -161,7 +161,7 @@ export function SetupFlow() {
     <Screen
       footer={
         <>
-          <ErrorNotice />
+          <ErrorNotice retryConnection={step === 6} />
           {step < 6 ? (
             <ActionButton onPress={next} busy={busy}>
               Continue

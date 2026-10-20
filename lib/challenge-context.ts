@@ -31,7 +31,8 @@ export async function eachChallenge(work: () => Promise<void>) {
       try {
         await inChallenge(id, work);
       } catch (error) {
-        failure ??= error;
+        // A background habit must not put its error on another habit's screen.
+        if (id === useHabbit.getState().activeId) failure ??= error;
       }
     }
   }

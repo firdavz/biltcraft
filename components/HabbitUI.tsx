@@ -153,7 +153,7 @@ export function ActionButton({
     </View>
   );
 }
-export function ErrorNotice() {
+export function ErrorNotice({ retryConnection = true }: { retryConnection?: boolean }) {
   const error = useHabbit((s) => s.error);
   const busy = useHabbit((s) => s.busy);
   if (!error) return null;
@@ -172,20 +172,22 @@ export function ErrorNotice() {
           <X size={16} color={colors.muted} />
         </Button>
       </View>
-      <Button
-        size="sm"
-        variant="ghost"
-        isDisabled={busy}
-        onPress={() => {
-          void action(async () => {
-            await pollUpdates();
-            await reconcile();
-          });
-        }}
-      >
-        <RotateCcw size={14} color={colors.accent} />
-        <Button.Label style={{ color: colors.accent }}>Retry connection</Button.Label>
-      </Button>
+      {retryConnection && (
+        <Button
+          size="sm"
+          variant="ghost"
+          isDisabled={busy}
+          onPress={() => {
+            void action(async () => {
+              await pollUpdates();
+              await reconcile();
+            });
+          }}
+        >
+          <RotateCcw size={14} color={colors.accent} />
+          <Button.Label style={{ color: colors.accent }}>Retry connection</Button.Label>
+        </Button>
+      )}
     </View>
   );
 }
