@@ -176,14 +176,7 @@ async function handleUpdate(update: TelegramUpdate) {
   const proof = s.days.find((d) => d.messageId === q.message?.message_id);
   if (!proof) return;
   const day = proof.status === 'VOTING' ? proof : undefined;
-  if (day && q.data === `reject:${day.day}`) {
-    await telegram('answerCallbackQuery', {
-      callback_query_id: q.id,
-      text: 'Only approval is available. Proof stays pending until approved.',
-    });
-    return;
-  }
-  if (!day || q.data !== `approve:${day.day}`) {
+  if (!day || (q.data !== `approve:${day.day}` && q.data !== `reject:${day.day}`)) {
     await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Voting has ended.' });
     return;
   }
@@ -194,7 +187,7 @@ async function handleUpdate(update: TelegramUpdate) {
     });
     return;
   }
-  await resolveDay(day, 'APPROVED');
+  await resolveDay(day, q.data === `approve:${day.day}` ? 'APPROVED' : 'REJECTED');
   await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Vote counted' });
 }
 export async function pollUpdates() {
@@ -289,14 +282,19 @@ async function sendPhotoProof(uri: string) {
     'caption',
     habitMessage(
       s.draft,
-      `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}. Approve this proof.`,
+      `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}. Approve or reject this proof.`,
     ),
   );
   form.append('parse_mode', 'HTML');
   form.append(
     'reply_markup',
     JSON.stringify({
-      inline_keyboard: [[{ text: 'Approve', callback_data: `approve:${day.day}` }]],
+      inline_keyboard: [
+        [
+          { text: 'Approve', callback_data: `approve:${day.day}` },
+          { text: 'Reject', callback_data: `reject:${day.day}` },
+        ],
+      ],
     }),
   );
   try {
