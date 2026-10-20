@@ -16,7 +16,10 @@ const report = (msg) => {
   console.error(msg);
 };
 
-for (const file of globSync('**/*.css', { exclude: ['**/node_modules/**'] })) {
+// Lint source CSS, not ignored Expo build output (see .gitignore).
+for (const file of globSync('**/*.css', {
+  exclude: ['**/node_modules/**', '**/dist/**', '**/web-build/**', '**/.expo/**'],
+})) {
   const code = readFileSync(file);
 
   try {
