@@ -295,12 +295,13 @@ export default function SignIn() {
                 variant="secondary"
                 isDisabled={busy || !email.trim()}
                 style={styles.continue}
+                className="bg-continue"
                 onPress={() => {
                   void send();
                 }}
               >
                 {busy && <Spinner size="sm" />}
-                <Button.Label style={{ color: colors.accent }}>
+                <Button.Label style={{ color: colors.white }}>
                   {busy ? copy.waiting : copy.continue}
                 </Button.Label>
               </Button>
@@ -330,9 +331,7 @@ const styles = StyleSheet.create({
   continue: {
     minHeight: 58,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.continue,
   },
   sent: { fontFamily: bodyFont, color: colors.muted, fontSize: 14, lineHeight: 24 },
   error: { fontFamily: bodyFont, color: colors.danger, fontSize: 14, lineHeight: 22 },

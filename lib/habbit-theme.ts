@@ -5,6 +5,7 @@ export const colors = {
   foreground: '#eceafb',
   muted: '#9ca1c6',
   accent: '#a78bfa',
+  continue: '#2563eb',
   border: 'rgba(167,139,250,0.15)',
   glow: 'rgba(124,92,255,0.25)',
   transparent: 'rgba(124,92,255,0)',
