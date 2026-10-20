@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { Button, Dialog, Input, Label, TextField, Description } from 'heroui-native';
+import { Button, Dialog } from 'heroui-native';
 import { Users, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Screen, ActionButton, ui } from '@/components/HabbitUI';
@@ -29,17 +29,14 @@ export default function EditHabit() {
   const notice = useHabbit((s) => s.deliveries['habit-deleted']);
   const [hour, setHour] = useState(draft.hour);
   const [minute, setMinute] = useState(draft.minute);
-  const [witnessMinutes, setWitnessMinutes] = useState(String(draft.approvalMinutes));
   const [confirm, setConfirm] = useState<'delete' | 'group' | null>(null);
-  const approvalMinutes = /^\d+$/.test(witnessMinutes) ? Number(witnessMinutes) : 0;
-  const valid = approvalMinutes >= 1 && approvalMinutes <= 1440;
   const uncertain = notice && notice.status !== 'sent';
   const run = (work: () => Promise<void>) => {
     void action(() => inChallenge(editingId, work));
   };
   const saveChanges = () =>
     run(async () => {
-      await updateHabitTimes({ hour, minute, approvalMinutes });
+      await updateHabitTimes({ hour, minute });
       goBackOrReplace('/');
     });
   if (!started || editingId !== activeId)
@@ -106,22 +103,8 @@ export default function EditHabit() {
                 }}
               />
             </View>
-            <TextField>
-              <Label>Witness response target (minutes)</Label>
-              <Input
-                keyboardType="number-pad"
-                value={witnessMinutes}
-                onChangeText={setWitnessMinutes}
-                maxLength={4}
-              />
-              <Description>
-                1–1,440 minutes. Proof stays pending until a witness presses Approve or Reject in
-                Telegram.
-              </Description>
-            </TextField>
             <Text style={ui.copy}>
-              Changes apply to upcoming alarms and new proof. Today’s open proof window stays the
-              same.
+              Changes apply to upcoming alarms. Today’s open proof window stays the same.
             </Text>
           </>
         )}
@@ -150,7 +133,7 @@ export default function EditHabit() {
           )}
         </View>
         {!reconnecting && (
-          <ActionButton busy={busy} disabled={!valid} onPress={saveChanges}>
+          <ActionButton busy={busy} onPress={saveChanges}>
             Save changes
           </ActionButton>
         )}

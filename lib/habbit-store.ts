@@ -12,7 +12,6 @@ export type HabitConfig = {
   hour: number;
   minute: number;
   proofMinutes: number;
-  approvalMinutes: number;
 };
 export type Group = { id: number; title: string; memberCount: number; selfId: number | null };
 export type Day = {
@@ -20,7 +19,6 @@ export type Day = {
   alarmAt: number;
   proofDeadline: number;
   status: DayStatus;
-  votingDeadline?: number;
   messageId?: number;
   shame?: string;
   autoApproved?: boolean;
@@ -61,7 +59,6 @@ const defaults: HabitConfig = {
   hour: 7,
   minute: 0,
   proofMinutes: 15,
-  approvalMinutes: 5,
 };
 function fresh(): Saved {
   return {
@@ -107,9 +104,9 @@ const savedSchema = z
       hour: z.number(),
       minute: z.number(),
       proofMinutes: z.number(),
-      approvalMinutes: z.number(),
     }),
-    setupStep: z.number(),
+    // Legacy Telegram setup was step 6; step 5 now connects the group.
+    setupStep: z.number().transform((step) => Math.min(step, 5)),
     code: z.string(),
     group: z
       .object({
@@ -127,7 +124,6 @@ const savedSchema = z
         alarmAt: z.number(),
         proofDeadline: z.number(),
         status: z.enum(['WAITING', 'PROOF_WINDOW', 'VOTING', 'APPROVED', 'REJECTED', 'MISSED']),
-        votingDeadline: z.number().optional(),
         messageId: z.number().optional(),
         shame: z.string().optional(),
         autoApproved: z.boolean().optional(),

@@ -176,7 +176,14 @@ async function handleUpdate(update: TelegramUpdate) {
   const proof = s.days.find((d) => d.messageId === q.message?.message_id);
   if (!proof) return;
   const day = proof.status === 'VOTING' ? proof : undefined;
-  if (!day || !q.data || ![`approve:${day.day}`, `reject:${day.day}`].includes(q.data)) {
+  if (day && q.data === `reject:${day.day}`) {
+    await telegram('answerCallbackQuery', {
+      callback_query_id: q.id,
+      text: 'Only approval is available. Proof stays pending until approved.',
+    });
+    return;
+  }
+  if (!day || q.data !== `approve:${day.day}`) {
     await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Voting has ended.' });
     return;
   }
@@ -187,13 +194,13 @@ async function handleUpdate(update: TelegramUpdate) {
     });
     return;
   }
-  await resolveDay(day, q.data.startsWith('approve:') ? 'APPROVED' : 'REJECTED');
+  await resolveDay(day, 'APPROVED');
   await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Vote counted' });
 }
 export async function pollUpdates() {
   const state = habitState();
   if (!state.hydrated || state.localDemo || !telegramConfigured()) return;
-  if (!state.started && state.setupStep < 6) return;
+  if (!state.started && state.setupStep < 5) return;
   if (
     !state.started &&
     !state.group &&
@@ -282,19 +289,14 @@ async function sendPhotoProof(uri: string) {
     'caption',
     habitMessage(
       s.draft,
-      `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}. Approve or reject this proof.`,
+      `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}. Approve this proof.`,
     ),
   );
   form.append('parse_mode', 'HTML');
   form.append(
     'reply_markup',
     JSON.stringify({
-      inline_keyboard: [
-        [
-          { text: 'Approve', callback_data: `approve:${day.day}` },
-          { text: 'Reject', callback_data: `reject:${day.day}` },
-        ],
-      ],
+      inline_keyboard: [[{ text: 'Approve', callback_data: `approve:${day.day}` }]],
     }),
   );
   try {
@@ -326,7 +328,6 @@ async function sendPhotoProof(uri: string) {
               ...day,
               status: 'VOTING',
               messageId: message.message_id,
-              votingDeadline: Date.now() + s.draft.approvalMinutes * 60000,
             }
           : d,
       ),
@@ -361,7 +362,6 @@ export async function openLocalDemo() {
     hour: 7,
     minute: 0,
     proofMinutes: 1,
-    approvalMinutes: 1,
   };
   await save({
     draft,
@@ -391,7 +391,7 @@ export async function nextDemoDay() {
   const s = habitState();
   const day = currentDay(s.days);
   if (!day) return;
-  if (day.status === 'VOTING') throw new Error('A witness must approve or reject the proof first.');
+  if (day.status === 'VOTING') throw new Error('A witness must approve the proof first.');
   if (day.status === 'PROOF_WINDOW' || day.status === 'WAITING') await resolveDay(day, 'MISSED');
   const next = habitState().days.find((d) => d.day === day.day + 1);
   if (!next) {

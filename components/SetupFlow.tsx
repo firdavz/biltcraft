@@ -22,7 +22,6 @@ const titles = [
   'One habit.\nMake it count.',
   'How long will\nyou commit?',
   'Set your\nmoment of truth.',
-  'Give your\nwitnesses time.',
   "Who's watching\nyou?",
 ];
 function GuideStep({
@@ -63,13 +62,8 @@ export function SetupFlow() {
     (step !== 2 || draft.habit.trim().length > 0) &&
     (step !== 3 ||
       (Number.isInteger(draft.totalDays) && draft.totalDays >= 1 && draft.totalDays <= 366)) &&
-    (step !== 4 || (draft.proofMinutes >= 1 && draft.proofMinutes <= 1440)) &&
-    (step !== 5 || (draft.approvalMinutes >= 1 && draft.approvalMinutes <= 1440));
-  function choices(
-    field: 'totalDays' | 'proofMinutes' | 'approvalMinutes',
-    values: number[],
-    unit: string,
-  ) {
+    (step !== 4 || (draft.proofMinutes >= 1 && draft.proofMinutes <= 1440));
+  function choices(field: 'totalDays' | 'proofMinutes', values: number[], unit: string) {
     const isCustom = custom[field] || !values.includes(draft[field]);
     return (
       <View style={{ gap: 14 }}>
@@ -161,8 +155,8 @@ export function SetupFlow() {
     <Screen
       footer={
         <>
-          <ErrorNotice retryConnection={step === 6} />
-          {step < 6 ? (
+          <ErrorNotice retryConnection={step === 5} />
+          {step < 5 ? (
             <ActionButton onPress={next} busy={busy}>
               Continue
             </ActionButton>
@@ -180,7 +174,7 @@ export function SetupFlow() {
               {reconnecting ? 'Back to today' : 'Start my challenge'}
             </ActionButton>
           ) : null}
-          {step !== 6 && (
+          {step !== 5 && (
             <Text style={styles.footerCopy}>
               {step === 0 ? copy.setupFooter : 'One habit. One day at a time.'}
             </Text>
@@ -191,13 +185,13 @@ export function SetupFlow() {
       <View style={ui.row}>
         <Brand />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={styles.step}>{step + 1} / 7</Text>
+          <Text style={styles.step}>{step + 1} / 6</Text>
           <AccountIcon />
         </View>
       </View>
       {switched && <Text style={[ui.copy, { marginTop: 24 }]}>{copy.accountSwitched}</Text>}
       <View style={styles.steps}>
-        {Array.from({ length: 7 }, (_, i) => (
+        {Array.from({ length: 6 }, (_, i) => (
           <View
             key={i}
             style={{
@@ -295,21 +289,12 @@ export function SetupFlow() {
             />
           </View>
           <View style={{ gap: 14 }}>
-            <SectionLabel>Time to send proof</SectionLabel>
+            <SectionLabel>How long do you have to send proof?</SectionLabel>
             {choices('proofMinutes', [2, 15, 30, 60], 'min')}
           </View>
         </View>
       )}
-      {step === 5 && (
-        <View style={{ gap: 24 }}>
-          {choices('approvalMinutes', [1, 5, 30], 'min')}
-          <Text style={ui.copy}>
-            This is your target response time. A witness must press Approve in Telegram to complete
-            the day. Without a vote, the proof stays pending.
-          </Text>
-        </View>
-      )}
-      {step === 6 && <TelegramGroupSetup />}
+      {step === 5 && <TelegramGroupSetup />}
       {step === 0 && (
         <View style={styles.promise}>
           <GuideStep number={1} title="Choose a habit" />

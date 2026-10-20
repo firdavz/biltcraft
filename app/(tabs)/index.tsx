@@ -220,7 +220,7 @@ export default function Today() {
             onPress={() =>
               void action(async () => {
                 await save({
-                  setupStep: 6,
+                  setupStep: 5,
                   reconnecting: true,
                   connectionStage: 'intro',
                   connectionSince: null,
@@ -279,12 +279,6 @@ export default function Today() {
         ) : day.status === 'VOTING' ? (
           <>
             <VotingPulse />
-            {day.votingDeadline !== undefined && now < day.votingDeadline && (
-              <View style={{ marginTop: 26, width: '100%', gap: 12 }}>
-                <SectionLabel>Witness response target</SectionLabel>
-                <Clock deadline={day.votingDeadline} now={now} short />
-              </View>
-            )}
             <Text style={[ui.copy, { marginTop: 20, textAlign: 'center' }]}>
               A witness must press Approve in Telegram to complete this day. No vote means it stays
               pending.

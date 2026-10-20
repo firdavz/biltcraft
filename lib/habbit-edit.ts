@@ -29,9 +29,7 @@ async function disconnectGroup() {
   if (!data?.ok)
     throw new Error(data?.description || 'Your group could not be disconnected. Try again.');
 }
-export async function updateHabitTimes(
-  config: Pick<HabitConfig, 'hour' | 'minute' | 'approvalMinutes'>,
-) {
+export async function updateHabitTimes(config: Pick<HabitConfig, 'hour' | 'minute'>) {
   if (
     !Number.isInteger(config.hour) ||
     config.hour < 0 ||
@@ -41,12 +39,6 @@ export async function updateHabitTimes(
     config.minute > 59
   )
     throw new Error('Choose an alarm time.');
-  if (
-    !Number.isInteger(config.approvalMinutes) ||
-    config.approvalMinutes < 1 ||
-    config.approvalMinutes > 1440
-  )
-    throw new Error('Choose between 1 and 1,440 minutes for witnesses.');
   // Resolve elapsed days without requiring message delivery before a local schedule edit.
   const state = habitState();
   const now = Date.now();
@@ -90,7 +82,7 @@ export async function changeHabitGroup() {
     group: null,
     groupRemoved: false,
     reconnecting: true,
-    setupStep: 6,
+    setupStep: 5,
     connectionStage: 'intro',
     connectionSince: null,
     days: state.days.map((day) =>
