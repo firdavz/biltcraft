@@ -296,6 +296,7 @@ export default function SignIn() {
                 isDisabled={busy || !email.trim()}
                 style={styles.continue}
                 className="bg-continue"
+                animation="disable-all"
                 onPress={() => {
                   void send();
                 }}
