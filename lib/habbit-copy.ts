@@ -37,17 +37,8 @@ export function shameMessage(c: HabitConfig, day: number, misses: number) {
   ];
   return messages[misses > 10 ? 5 + Math.floor(Math.random() * 5) : Math.max(0, misses - 1)];
 }
-export function approvedMessage(c: HabitConfig, day: number, auto = false) {
-  const callout = c.gender === 'He' ? 'MAN' : 'GIRL';
-  const his = c.gender === 'He' ? 'his' : 'her';
-  const messages = [
-    `✅ ${c.name} showed up. Day ${day}/${c.totalDays}. Respect.`,
-    `Day ${day} done. Not playing around, ${callout}.`,
-    `Proof accepted. ${c.name} kept ${his} word today.`,
-    `Another vote for the new ${c.name}. Day ${day}/${c.totalDays}.`,
-    `Excuses: 0. ${c.name}: day ${day}. Keep going.`,
-  ];
-  return messages[Math.floor(Math.random() * messages.length)] + (auto ? ' (auto-approved)' : '');
+export function approvedMessage(c: HabitConfig, day: number) {
+  return `${c.name}’s proof for ${c.habit} was approved by a witness. Day ${day}/${c.totalDays} complete.${day < c.totalDays ? ` Next: day ${day + 1}.` : ''}`;
 }
 export function kickoff(c: HabitConfig) {
   return `${c.name} just started Habbit: ${c.habit} for ${c.totalDays} days. You are ${c.gender === 'He' ? 'his' : 'her'} witnesses. Don't let ${c.gender === 'He' ? 'him' : 'her'} get away with excuses.`;

@@ -169,11 +169,7 @@ export default function Today() {
             ) : (
               <>
                 <Check size={52} strokeWidth={1.5} color={colors.accent} />
-                <Text style={ui.copy}>
-                  {day.autoApproved
-                    ? 'Auto-approved. You kept your word.'
-                    : 'Your witnesses accepted the proof.'}
-                </Text>
+                <Text style={ui.copy}>Day complete.</Text>
               </>
             )}
           </View>
@@ -283,11 +279,15 @@ export default function Today() {
         ) : day.status === 'VOTING' ? (
           <>
             <VotingPulse />
-            <View style={{ marginTop: 26, width: '100%' }}>
-              <Clock deadline={day.votingDeadline!} now={now} short />
-            </View>
+            {day.votingDeadline !== undefined && now < day.votingDeadline && (
+              <View style={{ marginTop: 26, width: '100%', gap: 12 }}>
+                <SectionLabel>Witness response target</SectionLabel>
+                <Clock deadline={day.votingDeadline} now={now} short />
+              </View>
+            )}
             <Text style={[ui.copy, { marginTop: 20, textAlign: 'center' }]}>
-              The first vote decides.
+              A witness must press Approve in Telegram to complete this day. No vote means it stays
+              pending.
             </Text>
           </>
         ) : (

@@ -105,12 +105,11 @@ async function removeButtons(day: Day) {
 async function flushDay(day: Day) {
   const state = habitState();
   if (day.status === 'APPROVED') {
+    // Historical automatic results are retained, but never announced as witness approvals.
+    if (day.autoApproved) return;
     await removeButtons(day);
     const key = `approved:${day.day}`;
-    await deliver(
-      key,
-      state.deliveries[key]?.text ?? approvedMessage(state.draft, day.day, day.autoApproved),
-    );
+    await deliver(key, state.deliveries[key]?.text ?? approvedMessage(state.draft, day.day));
   } else if (day.status === 'REJECTED' || day.status === 'MISSED') {
     if (day.status === 'REJECTED') {
       await removeButtons(day);
@@ -122,18 +121,13 @@ async function flushDay(day: Day) {
     await deliver(`shame:${day.day}`, day.shame!);
   }
 }
-async function resolveDay(
-  day: Day,
-  status: 'APPROVED' | 'REJECTED' | 'MISSED',
-  auto = false,
-  send = true,
-) {
+async function resolveDay(day: Day, status: 'APPROVED' | 'REJECTED' | 'MISSED', send = true) {
   const s = habitState();
   const misses = s.days.filter((d) => d.status === 'MISSED' || d.status === 'REJECTED').length + 1;
   const resolved: Day = {
     ...day,
     status,
-    autoApproved: auto,
+    autoApproved: false,
     shame: status === 'APPROVED' ? undefined : shameMessage(s.draft, day.day, misses),
   };
   await updateDay(resolved);
@@ -157,9 +151,7 @@ export async function reconcile() {
       await updateDay(day);
     }
     if (day.status === 'PROOF_WINDOW' && now >= day.proofDeadline)
-      await resolveDay(day, 'MISSED', false, false);
-    else if (day.status === 'VOTING' && now >= day.votingDeadline!)
-      await resolveDay(day, 'APPROVED', true, false);
+      await resolveDay(day, 'MISSED', false);
   }
   const state = habitState();
   if (state.groupRemoved || state.reconnecting) return;
@@ -194,11 +186,6 @@ async function handleUpdate(update: TelegramUpdate) {
       callback_query_id: q.id,
       text: "You can't vote on yourself",
     });
-    return;
-  }
-  if (Date.now() >= day.votingDeadline!) {
-    await resolveDay(day, 'APPROVED', true);
-    await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Voting has ended.' });
     return;
   }
   await resolveDay(day, q.data.startsWith('approve:') ? 'APPROVED' : 'REJECTED');
@@ -293,15 +280,15 @@ async function sendPhotoProof(uri: string) {
   form.append('chat_id', String(s.group.id));
   form.append(
     'caption',
-    `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}: ${s.draft.habit}. Real or fake?`,
+    `${s.draft.name} — Day ${day.day}/${s.draft.totalDays}: ${s.draft.habit}. Approve or reject this proof.`,
   );
   form.append(
     'reply_markup',
     JSON.stringify({
       inline_keyboard: [
         [
-          { text: '✅ Real', callback_data: `approve:${day.day}` },
-          { text: '❌ Fake', callback_data: `reject:${day.day}` },
+          { text: 'Approve', callback_data: `approve:${day.day}` },
+          { text: 'Reject', callback_data: `reject:${day.day}` },
         ],
       ],
     }),
@@ -400,8 +387,8 @@ export async function nextDemoDay() {
   const s = habitState();
   const day = currentDay(s.days);
   if (!day) return;
+  if (day.status === 'VOTING') throw new Error('A witness must approve or reject the proof first.');
   if (day.status === 'PROOF_WINDOW' || day.status === 'WAITING') await resolveDay(day, 'MISSED');
-  else if (day.status === 'VOTING') await resolveDay(day, 'APPROVED', true);
   const next = habitState().days.find((d) => d.day === day.day + 1);
   if (!next) {
     await reconcile();

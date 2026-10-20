@@ -304,7 +304,8 @@ export function SetupFlow() {
         <View style={{ gap: 24 }}>
           {choices('approvalMinutes', [1, 5, 30], 'min')}
           <Text style={ui.copy}>
-            The first witness decides. No vote in time? Your proof is automatically approved.
+            This is your target response time. A witness must press Approve in Telegram to complete
+            the day. Without a vote, the proof stays pending.
           </Text>
         </View>
       )}

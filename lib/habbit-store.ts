@@ -387,11 +387,12 @@ export function buildDays(config: HabitConfig, first = Date.now()) {
   });
 }
 export function currentDay(days: Day[], now = Date.now()): Day | undefined {
-  return (
-    days.find((d) => d.status === 'PROOF_WINDOW' || d.status === 'VOTING') ??
-    days.findLast((d) => d.alarmAt <= now) ??
-    days[0]
-  );
+  const open = days.find((d) => d.status === 'PROOF_WINDOW' || d.status === 'VOTING');
+  if (open) return open;
+  const latest = days.findLast((d) => d.alarmAt <= now);
+  if (latest?.status === 'APPROVED')
+    return days.find((d) => d.day > latest.day && d.status === 'WAITING') ?? latest;
+  return latest ?? days[0];
 }
 export function finished(days: Day[]) {
   return (

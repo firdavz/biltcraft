@@ -107,7 +107,7 @@ export default function EditHabit() {
               />
             </View>
             <TextField>
-              <Label>Witness voting time (minutes)</Label>
+              <Label>Witness response target (minutes)</Label>
               <Input
                 keyboardType="number-pad"
                 value={witnessMinutes}
@@ -115,12 +115,13 @@ export default function EditHabit() {
                 maxLength={4}
               />
               <Description>
-                1–1,440 minutes after you send proof. The first vote decides.
+                1–1,440 minutes. Proof stays pending until a witness presses Approve or Reject in
+                Telegram.
               </Description>
             </TextField>
             <Text style={ui.copy}>
-              Changes apply to upcoming alarms and new proof. Today’s open proof or voting deadline
-              stays the same.
+              Changes apply to upcoming alarms and new proof. Today’s open proof window stays the
+              same.
             </Text>
           </>
         )}
