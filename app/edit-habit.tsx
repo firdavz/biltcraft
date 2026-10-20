@@ -75,11 +75,7 @@ export default function EditHabit() {
             >
               Done
             </ActionButton>
-          ) : (
-            <ActionButton busy={busy} disabled={!valid} onPress={saveChanges}>
-              Save changes
-            </ActionButton>
-          )}
+          ) : null}
           {!router.canGoBack() && (
             <Link href="/" style={{ color: colors.accent, textAlign: 'center' }}>
               Today
@@ -152,6 +148,11 @@ export default function EditHabit() {
             </>
           )}
         </View>
+        {!reconnecting && (
+          <ActionButton busy={busy} disabled={!valid} onPress={saveChanges}>
+            Save changes
+          </ActionButton>
+        )}
         <Button
           variant="ghost"
           isDisabled={busy}
