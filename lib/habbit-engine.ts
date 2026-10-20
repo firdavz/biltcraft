@@ -76,6 +76,18 @@ async function deliver(key: string, text: string) {
         );
   }
 }
+export async function sendDeletionNotice() {
+  const state = habitState();
+  const notice = state.deliveries['habit-deleted'];
+  if (notice && notice.status !== 'sent')
+    throw new Error(
+      'The deletion notice may already be in Telegram. Check your group before confirming deletion again.',
+    );
+  await deliver(
+    'habit-deleted',
+    `${state.draft.name || 'The owner'} deleted the habit “${state.draft.habit}”. This challenge has ended; no more proof or votes will be requested.`,
+  );
+}
 async function removeButtons(day: Day) {
   const s = habitState();
   if (!day.messageId || !s.group || s.localDemo) return;

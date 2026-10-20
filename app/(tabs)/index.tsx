@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Bell, Users, Check, ArrowUpRight, Camera, Radio } from 'lucide-react-native';
+import { Bell, Users, Check, ArrowUpRight, Camera, Radio, Pencil } from 'lucide-react-native';
 import { Button, Skeleton } from 'heroui-native';
 import Animated, {
   useSharedValue,
@@ -290,6 +290,17 @@ export default function Today() {
             )}
           </>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          style={{ marginTop: 18 }}
+          onPress={() => router.push('/edit-habit')}
+        >
+          <Pencil size={15} strokeWidth={1.8} color={colors.accent} />
+          <Button.Label numberOfLines={1} style={{ color: colors.accent }}>
+            Edit habit
+          </Button.Label>
+        </Button>
       </View>
       <ErrorNotice />
       {!localDemo && !notificationsReady && !done && (

@@ -243,6 +243,32 @@ export async function createChallenge() {
   });
   await save({});
 }
+export async function removeChallenge(id: string) {
+  const state = useHabbit.getState();
+  const remaining = allChallenges();
+  delete remaining[id];
+  if (id === state.activeId) {
+    const nextId = Object.keys(remaining)[0];
+    if (nextId) {
+      useHabbit.setState({
+        ...remaining[nextId],
+        activeId: nextId,
+        challenges: remaining,
+        error: null,
+        photoStage: null,
+      });
+    } else {
+      useHabbit.setState({
+        ...fresh(),
+        activeId: `challenge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        challenges: {},
+        error: null,
+        photoStage: null,
+      });
+    }
+  } else useHabbit.setState({ challenges: remaining });
+  await save({});
+}
 export async function hydrate() {
   try {
     const raw = await AsyncStorage.getItem(key);
