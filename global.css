@@ -39,6 +39,14 @@
 
 @source './node_modules/heroui-native/lib';
 
+/* HeroUI's OTP input is hidden on native but not on web. Keep it focusable
+ * for typing, paste, and autofill; the slots provide the visible value/caret. */
+@media (min-width: 0px) {
+  #habbit-signin-otp-input {
+    opacity: 0;
+  }
+}
+
 @layer theme {
   :root {
     @variant light {

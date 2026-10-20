@@ -216,6 +216,7 @@ export default function SignIn() {
                   void verify(value);
                 }}
                 textInputProps={{
+                  nativeID: 'habbit-signin-otp-input',
                   keyboardType: 'number-pad',
                   autoComplete: Platform.OS === 'android' ? 'sms-otp' : 'one-time-code',
                   textContentType: 'oneTimeCode',
