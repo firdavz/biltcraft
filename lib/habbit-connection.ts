@@ -1,18 +1,18 @@
 import { Platform, Linking } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { telegram, connectionLink } from './telegram';
-import { save, useHabbit, type Group } from './habbit-store';
+import type { Group } from './habbit-store';
+import { habitState, saveHabit as save } from './challenge-context';
 
 export async function beginConnection() {
   await syncConnection();
-  if (useHabbit.getState().connectionStage === 'connected' && !useHabbit.getState().groupRemoved)
-    return;
+  if (habitState().connectionStage === 'connected' && !habitState().groupRemoved) return;
   const result = await telegram<{ code: string; lookingSince: number }>('beginConnection');
   await save({
     code: result.code,
     connectionSince: result.lookingSince,
     connectionStage: 'waiting',
-    ...(useHabbit.getState().started ? {} : { group: null }),
+    ...(habitState().started ? {} : { group: null }),
   });
   try {
     const link = await connectionLink(result.code);
@@ -28,19 +28,19 @@ export async function cancelConnection() {
   await save({
     connectionStage: 'intro',
     connectionSince: null,
-    ...(useHabbit.getState().started ? {} : { group: null }),
+    ...(habitState().started ? {} : { group: null }),
   });
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
 export async function rejectGroup() {
-  const group = useHabbit.getState().group;
+  const group = habitState().group;
   if (!group) return;
   await telegram('rejectGroup', { chat_id: group.id });
   await save({ group: null, connectionStage: 'waiting', connectionSince: Date.now() });
   void Haptics.selectionAsync();
 }
 export async function confirmGroup() {
-  const state = useHabbit.getState();
+  const state = habitState();
   if (!state.group) throw new Error('Choose your Telegram group first.');
   if ((await checkGroup()) < 3) return;
   const group = await telegram<Group>('confirmGroup', {
@@ -51,7 +51,7 @@ export async function confirmGroup() {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
 export async function syncConnection() {
-  const state = useHabbit.getState();
+  const state = habitState();
   const result = await telegram<{
     code: string;
     group: { id: number; selfId: number; title: string } | null;
@@ -63,7 +63,7 @@ export async function syncConnection() {
     group: state.connectionStage === 'connected' || state.started ? state.group : null,
     message_ids: state.days.flatMap((day) => (day.messageId === undefined ? [] : [day.messageId])),
   });
-  if (useHabbit.getState().code !== state.code) return;
+  if (habitState().code !== state.code) return;
   const connected = result.removed ? null : result.group;
   const candidate = ['waiting', 'found', 'tooFew', 'notFound'].includes(state.connectionStage)
     ? result.candidate
@@ -91,11 +91,11 @@ export async function syncConnection() {
     await checkGroup();
 }
 export async function checkGroup() {
-  const state = useHabbit.getState();
+  const state = habitState();
   const group = state.group;
   if (!group) throw new Error('Connect your Telegram group first.');
   const count = await telegram<number>('getChatMemberCount', { chat_id: group.id });
-  if (useHabbit.getState().group?.id !== group.id) return count;
+  if (habitState().group?.id !== group.id) return count;
   await save({
     group: { ...group, memberCount: count },
     ...(['found', 'tooFew'].includes(state.connectionStage)

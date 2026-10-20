@@ -46,6 +46,54 @@ declare module '@biltme/backend' {
           }
           Relationships: []
         }
+        telegram_challenge_connections: {
+          Row: {
+            id: string
+            owner_id: string
+            chat_id: number | null
+            self_id: number | null
+            title: string | null
+            removed: boolean
+            code: string
+            expires_at: string
+            looking_since: string | null
+            telegram_user_id: number | null
+            ignored_chat_ids: number[]
+            candidate: Json | null
+            candidate_priority: number | null
+          }
+          Insert: {
+            id: string
+            owner_id: string
+            chat_id?: number | null
+            self_id?: number | null
+            title?: string | null
+            removed?: boolean
+            code?: string
+            expires_at?: string
+            looking_since?: string | null
+            telegram_user_id?: number | null
+            ignored_chat_ids?: number[]
+            candidate?: Json | null
+            candidate_priority?: number | null
+          }
+          Update: {
+            id?: string
+            owner_id?: string
+            chat_id?: number | null
+            self_id?: number | null
+            title?: string | null
+            removed?: boolean
+            code?: string
+            expires_at?: string
+            looking_since?: string | null
+            telegram_user_id?: number | null
+            ignored_chat_ids?: number[]
+            candidate?: Json | null
+            candidate_priority?: number | null
+          }
+          Relationships: []
+        }
         telegram_connections: {
           Row: {
             owner_id: string

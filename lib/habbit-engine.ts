@@ -9,7 +9,6 @@ import {
   type TelegramUpdate,
 } from './telegram';
 import {
-  save,
   useHabbit,
   buildDays,
   finished,
@@ -19,6 +18,7 @@ import {
   type Day,
   type HabitConfig,
 } from './habbit-store';
+import { habitState, saveHabit as save, eachChallenge } from './challenge-context';
 import { checkGroup, appendMedia, syncConnection } from './habbit-connection';
 import { approvedMessage, shameMessage, kickoff } from './habbit-copy';
 import { scheduleAlarms, cancelAlarms } from './habbit-notifications';
@@ -35,12 +35,12 @@ export function serial<T>(work: () => Promise<T>): Promise<T> {
 }
 export function reportError(error: unknown) {
   const message = errorMessage(error);
-  if (useHabbit.getState().error !== message)
+  if (habitState().error !== message)
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   useHabbit.setState({ error: message });
 }
 export async function action(work: () => Promise<void>) {
-  if (useHabbit.getState().busy) return;
+  if (habitState().busy) return;
   useHabbit.setState({ busy: true, error: null });
   try {
     await serial(work);
@@ -51,21 +51,21 @@ export async function action(work: () => Promise<void>) {
   }
 }
 async function updateDay(day: Day) {
-  await save({ days: useHabbit.getState().days.map((d) => (d.day === day.day ? day : d)) });
+  await save({ days: habitState().days.map((d) => (d.day === day.day ? day : d)) });
 }
 
 async function deliver(key: string, text: string) {
-  const state = useHabbit.getState();
+  const state = habitState();
   if (state.deliveries[key]) return;
   if (!state.group) throw new Error('Reconnect your witness group.');
   await save({ deliveries: { ...state.deliveries, [key]: { status: 'attempting', text } } });
   try {
     if (!state.localDemo) await sendMessage(state.group.id, text);
     await save({
-      deliveries: { ...useHabbit.getState().deliveries, [key]: { status: 'sent', text } },
+      deliveries: { ...habitState().deliveries, [key]: { status: 'sent', text } },
     });
   } catch (e) {
-    const deliveries = { ...useHabbit.getState().deliveries };
+    const deliveries = { ...habitState().deliveries };
     if (e instanceof TelegramError) delete deliveries[key];
     else deliveries[key] = { status: 'uncertain', text };
     await save({ deliveries });
@@ -77,7 +77,7 @@ async function deliver(key: string, text: string) {
   }
 }
 async function removeButtons(day: Day) {
-  const s = useHabbit.getState();
+  const s = habitState();
   if (!day.messageId || !s.group || s.localDemo) return;
   const key = `buttons:${day.day}`;
   if (s.deliveries[key]?.status === 'sent') return;
@@ -87,11 +87,11 @@ async function removeButtons(day: Day) {
     reply_markup: { inline_keyboard: [] },
   });
   await save({
-    deliveries: { ...useHabbit.getState().deliveries, [key]: { status: 'sent', text: '' } },
+    deliveries: { ...habitState().deliveries, [key]: { status: 'sent', text: '' } },
   });
 }
 async function flushDay(day: Day) {
-  const state = useHabbit.getState();
+  const state = habitState();
   if (day.status === 'APPROVED') {
     await removeButtons(day);
     const key = `approved:${day.day}`;
@@ -116,7 +116,7 @@ async function resolveDay(
   auto = false,
   send = true,
 ) {
-  const s = useHabbit.getState();
+  const s = habitState();
   const misses = s.days.filter((d) => d.status === 'MISSED' || d.status === 'REJECTED').length + 1;
   const resolved: Day = {
     ...day,
@@ -135,11 +135,11 @@ async function resolveDay(
 }
 
 export async function reconcile() {
-  const s = useHabbit.getState();
+  const s = habitState();
   if (!s.hydrated || !s.started) return;
   const now = Date.now();
   for (const original of s.days) {
-    let day = useHabbit.getState().days.find((d) => d.day === original.day)!;
+    let day = habitState().days.find((d) => d.day === original.day)!;
     if (day.status === 'WAITING' && now >= day.alarmAt) {
       day = { ...day, status: 'PROOF_WINDOW' };
       await updateDay(day);
@@ -149,7 +149,7 @@ export async function reconcile() {
     else if (day.status === 'VOTING' && now >= day.votingDeadline!)
       await resolveDay(day, 'APPROVED', true, false);
   }
-  const state = useHabbit.getState();
+  const state = habitState();
   if (state.groupRemoved || state.reconnecting) return;
   for (const day of state.days) {
     if (['APPROVED', 'MISSED', 'REJECTED'].includes(day.status)) await flushDay(day);
@@ -164,7 +164,8 @@ export async function reconcile() {
 async function handleUpdate(update: TelegramUpdate) {
   const q = update.callback_query;
   if (!q) return;
-  const s = useHabbit.getState();
+  const s = habitState();
+  if (q.message?.chat.id !== s.group?.id) return;
   const day = s.days.find(
     (d) =>
       d.status === 'VOTING' &&
@@ -192,7 +193,7 @@ async function handleUpdate(update: TelegramUpdate) {
   await telegram('answerCallbackQuery', { callback_query_id: q.id, text: 'Vote counted' });
 }
 export async function pollUpdates() {
-  const state = useHabbit.getState();
+  const state = habitState();
   if (!state.hydrated || state.localDemo || !telegramConfigured()) return;
   if (
     !state.started &&
@@ -201,7 +202,7 @@ export async function pollUpdates() {
   )
     return;
   await syncConnection();
-  const latest = useHabbit.getState();
+  const latest = habitState();
   if (
     latest.connectionStage === 'waiting' &&
     latest.connectionSince &&
@@ -210,7 +211,7 @@ export async function pollUpdates() {
     await save({ connectionStage: 'notFound' });
   }
   const updates = await telegram<TelegramUpdate[]>('getUpdates', {
-    offset: useHabbit.getState().offset,
+    offset: habitState().offset,
     timeout: 0,
     allowed_updates: ['message', 'my_chat_member', 'callback_query'],
   });
@@ -219,8 +220,14 @@ export async function pollUpdates() {
     await save({ offset: update.update_id + 1 });
   }
 }
+export async function reconcileAll() {
+  await eachChallenge(reconcile);
+}
+export async function pollAllUpdates() {
+  await eachChallenge(pollUpdates);
+}
 export async function startChallenge() {
-  const s = useHabbit.getState();
+  const s = habitState();
   if (!s.group || s.group.selfId === null) throw new Error('Connect your Telegram group first.');
   const count = await checkGroup();
   if (count < 3) throw new Error('Add a witness to your group');
@@ -256,7 +263,7 @@ export async function sendProof(uri: string) {
 }
 async function sendPhotoProof(uri: string) {
   await reconcile();
-  const s = useHabbit.getState();
+  const s = habitState();
   const day = currentDay(s.days);
   if (!day || day.status !== 'PROOF_WINDOW' || Date.now() >= day.proofDeadline)
     throw new PhotoSendError('upload', 'PHOTO_WINDOW_ENDED', 'Your proof window has ended.');
@@ -310,7 +317,7 @@ async function sendPhotoProof(uri: string) {
     useHabbit.setState({ photoStage: 'telegram' });
     await save({
       photoDiagnostic: null,
-      days: useHabbit.getState().days.map((d) =>
+      days: habitState().days.map((d) =>
         d.day === day.day
           ? {
               ...day,
@@ -320,7 +327,7 @@ async function sendPhotoProof(uri: string) {
             }
           : d,
       ),
-      deliveries: { ...useHabbit.getState().deliveries, [key]: { status: 'sent', text: '' } },
+      deliveries: { ...habitState().deliveries, [key]: { status: 'sent', text: '' } },
     });
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   } catch (e) {
@@ -335,7 +342,7 @@ async function sendPhotoProof(uri: string) {
               : 'The connection was lost while uploading or sending. Check Telegram; do not resend.',
             confirmed ? 'sent' : 'unknown',
           );
-    const deliveries = { ...useHabbit.getState().deliveries };
+    const deliveries = { ...habitState().deliveries };
     if (failure.delivery === 'not_sent') delete deliveries[key];
     else deliveries[key] = { status: failure.delivery === 'sent' ? 'sent' : 'uncertain', text: '' };
     await save({ deliveries });
@@ -364,7 +371,7 @@ export async function openLocalDemo() {
   });
 }
 export async function fireAlarm() {
-  const s = useHabbit.getState();
+  const s = habitState();
   const day = currentDay(s.days);
   if (!day || finished(s.days)) return;
   if (!['WAITING', 'PROOF_WINDOW'].includes(day.status))
@@ -378,12 +385,12 @@ export async function fireAlarm() {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
 export async function nextDemoDay() {
-  const s = useHabbit.getState();
+  const s = habitState();
   const day = currentDay(s.days);
   if (!day) return;
   if (day.status === 'PROOF_WINDOW' || day.status === 'WAITING') await resolveDay(day, 'MISSED');
   else if (day.status === 'VOTING') await resolveDay(day, 'APPROVED', true);
-  const next = useHabbit.getState().days.find((d) => d.day === day.day + 1);
+  const next = habitState().days.find((d) => d.day === day.day + 1);
   if (!next) {
     await reconcile();
     return;
@@ -401,7 +408,7 @@ export async function nextDemoDay() {
   await reconcile();
 }
 export async function demoVote(approve: boolean) {
-  const s = useHabbit.getState();
+  const s = habitState();
   const day = currentDay(s.days);
   if (!s.localDemo || day?.status !== 'VOTING') return;
   await resolveDay(day, approve ? 'APPROVED' : 'REJECTED');

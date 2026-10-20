@@ -167,6 +167,8 @@ export default function RootLayout() {
         >
           <Stack.Protected guard={authorized}>
             <Stack.Screen name="(tabs)" options={{ title: 'Habbit', headerShown: false }} />
+            <Stack.Screen name="account" options={{ title: 'Account settings' }} />
+            <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
             <Stack.Screen
               name="camera"
               options={{ headerShown: false, presentation: 'fullScreenModal' }}

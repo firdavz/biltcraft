@@ -7,13 +7,13 @@ import type { PropsWithChildren } from 'react';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from './HabbitUI';
 import { GradientTitle } from './GradientTitle';
 import { TimePicker } from './TimePicker';
-import { AccountActions } from './AccountActions';
+import { AccountIcon } from './AccountIcon';
 import { useAuthCopy } from '@/lib/auth-copy';
 import { useAuth } from '@/lib/auth-state';
 import { bilt } from '@/lib/bilt';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { save, useHabbit, type HabitConfig } from '@/lib/habbit-store';
-import { action, startChallenge, reportError, openLocalDemo } from '@/lib/habbit-engine';
+import { action, startChallenge, reportError } from '@/lib/habbit-engine';
 import { TelegramGroupSetup } from './TelegramGroupSetup';
 
 const titles = [
@@ -189,12 +189,11 @@ export function SetupFlow() {
       }
     >
       <View style={ui.row}>
-        <Brand
-          onLongPress={() => {
-            void action(openLocalDemo);
-          }}
-        />
-        <Text style={styles.step}>{step + 1} / 7</Text>
+        <Brand />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.step}>{step + 1} / 7</Text>
+          <AccountIcon />
+        </View>
       </View>
       {switched && <Text style={[ui.copy, { marginTop: 24 }]}>{copy.accountSwitched}</Text>}
       <View style={styles.steps}>
@@ -317,9 +316,6 @@ export function SetupFlow() {
           <GuideStep number={3} title="Send daily photo proof" />
         </View>
       )}
-      <View style={{ marginTop: 24 }}>
-        <AccountActions compact />
-      </View>
     </Screen>
   );
 }

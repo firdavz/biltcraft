@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
-import { useHabbit, save } from '@/lib/habbit-store';
+import { useHabbit, save, allChallenges } from '@/lib/habbit-store';
 import { canRunHabit } from '@/lib/auth-state';
-import { pollUpdates, reconcile, reportError, serial } from '@/lib/habbit-engine';
+import { pollAllUpdates, reconcileAll, reportError, serial } from '@/lib/habbit-engine';
 import { scheduleAlarms } from '@/lib/habbit-notifications';
 
 export function HabbitRuntime() {
@@ -16,11 +16,11 @@ export function HabbitRuntime() {
           await serial(async () => {
             if (cancelled || !canRunHabit()) return;
             try {
-              await pollUpdates();
+              await pollAllUpdates();
             } catch (error) {
               reportError(error);
             }
-            await reconcile();
+            await reconcileAll();
           });
         } catch (e) {
           reportError(e);
@@ -35,22 +35,22 @@ export function HabbitRuntime() {
     void serial(async () => {
       if (cancelled || !canRunHabit()) return;
       const state = useHabbit.getState();
-      if (!state.started || state.localDemo) return;
+      if (!Object.values(allChallenges()).some((c) => c.started && !c.localDemo)) return;
       await save({ notificationsReady: await scheduleAlarms(state.days, state.draft) });
     }).catch(reportError);
     const listener = AppState.addEventListener('change', (status) => {
       if (status !== 'active' || !canRunHabit()) return;
       const s = useHabbit.getState();
-      if (s.localDemo) return;
+      if (!Object.values(allChallenges()).some((c) => !c.localDemo)) return;
       void serial(async () => {
         if (cancelled || !canRunHabit()) return;
         try {
-          await pollUpdates();
+          await pollAllUpdates();
         } catch (error) {
           reportError(error);
         }
-        await reconcile();
-        if (s.started)
+        await reconcileAll();
+        if (Object.values(allChallenges()).some((c) => c.started && !c.localDemo))
           await save({
             notificationsReady: await scheduleAlarms(useHabbit.getState().days, s.draft),
           });

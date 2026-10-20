@@ -67,8 +67,8 @@ export function Brand({
 }) {
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Habbit. Long press for demo controls."
+      accessibilityRole={onLongPress ? 'button' : undefined}
+      accessibilityLabel="Habbit"
       onLongPress={onLongPress}
       delayLongPress={650}
       style={styles.brand}

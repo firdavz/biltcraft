@@ -2,6 +2,7 @@ import { FunctionsHttpError } from '@biltme/backend';
 import { bilt } from './bilt';
 import { PhotoSendError } from './photo-diagnostics';
 import { canRunHabit } from './auth-state';
+import { challengeId } from './challenge-context';
 import { authCopy, useLocale } from './auth-copy';
 
 let botUsername = '';
@@ -107,14 +108,18 @@ export async function telegram<T>(
     throw error;
   }
   const multipart = body instanceof FormData;
-  if (multipart) body.append('method', method);
+  const id = challengeId();
+  if (multipart) {
+    body.append('method', method);
+    if (id !== 'legacy') body.append('challenge_id', id);
+  }
   const { data, error } = await bilt.functions.invoke<{
     ok: boolean;
     result: T;
     description?: string;
     photo_diagnostic?: unknown;
-  }>('telegram', {
-    body: multipart ? body : { method, body },
+  }>(id === 'legacy' ? 'telegram' : 'telegram-challenges', {
+    body: multipart ? body : { method, body, challenge_id: id },
     timeout: multipart ? 120000 : 20000,
   });
   if (error instanceof FunctionsHttpError) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Bell, Users, Check, ArrowUpRight, Camera, X, Radio } from 'lucide-react-native';
+import { Bell, Users, Check, ArrowUpRight, Camera, Radio } from 'lucide-react-native';
 import { Button, Skeleton } from 'heroui-native';
 import Animated, {
   useSharedValue,
@@ -10,22 +10,13 @@ import Animated, {
   withTiming,
   useReducedMotion,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from '@/components/HabbitUI';
 import { GradientTitle } from '@/components/GradientTitle';
 import { SetupFlow } from '@/components/SetupFlow';
 import { PhotoSendDiagnostic } from '@/components/PhotoSendDiagnostic';
-import { AccountActions } from '@/components/AccountActions';
+import { AccountIcon } from '@/components/AccountIcon';
 import { useHabbit, currentDay, finished, save } from '@/lib/habbit-store';
-import {
-  action,
-  fireAlarm,
-  nextDemoDay,
-  resetChallenge,
-  openLocalDemo,
-  demoVote,
-  reportError,
-} from '@/lib/habbit-engine';
+import { action, openLocalDemo } from '@/lib/habbit-engine';
 import { quotes } from '@/lib/habbit-copy';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { useNow, countdown } from '@/hooks/useNow';
@@ -80,7 +71,8 @@ function Clock({
 }
 export default function Today() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ demo?: string; reset?: string }>();
+  const params = useLocalSearchParams<{ demo?: string }>();
+  const activeId = useHabbit((s) => s.activeId);
   const hydrated = useHabbit((s) => s.hydrated);
   const started = useHabbit((s) => s.started);
   const draft = useHabbit((s) => s.draft);
@@ -93,15 +85,12 @@ export default function Today() {
   const now = useNow();
   const day = currentDay(days, now);
   const done = finished(days);
-  const [demoOpen, setDemoOpen] = useState(false);
   const [dismissed, setDismissed] = useState('');
   // Explicit preview-only demo entry; never substitutes for a real Telegram connection.
   useEffect(() => {
     if (hydrated && params.demo === '1' && !started) void action(openLocalDemo);
   }, [hydrated, params.demo, started]);
-  useEffect(() => {
-    if (hydrated && params.reset === '1' && started) void action(resetChallenge);
-  }, [hydrated, params.reset, started]);
+
   if (!hydrated)
     return (
       <Screen>
@@ -113,7 +102,7 @@ export default function Today() {
       </Screen>
     );
   if (!started || !day || reconnecting) return <SetupFlow />;
-  const resultKey = `${day.day}:${day.status}`;
+  const resultKey = `${activeId}:${day.day}:${day.status}`;
   const showResult =
     ['APPROVED', 'MISSED', 'REJECTED'].includes(day.status) && dismissed !== resultKey && !done;
   if (showResult && !groupRemoved) {
@@ -191,7 +180,6 @@ export default function Today() {
               </Button.Label>
               <ArrowUpRight size={18} color={failed ? colors.white : colors.accent} />
             </Button>
-            <ResetButton />
           </View>
         </View>
       </View>
@@ -206,10 +194,13 @@ export default function Today() {
   return (
     <Screen>
       <View style={ui.row}>
-        <Brand small onLongPress={() => setDemoOpen((v) => !v)} />
-        <Text style={styles.date}>
-          {new Date(now).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-        </Text>
+        <Brand small />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.date}>
+            {new Date(now).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+          </Text>
+          <AccountIcon />
+        </View>
       </View>
       {groupRemoved && (
         <View style={{ gap: 12, marginTop: 24 }}>
@@ -235,37 +226,12 @@ export default function Today() {
         <SectionLabel color={colors.accent}>
           {done ? 'Challenge complete' : `Day ${day.day} / ${draft.totalDays}`}
         </SectionLabel>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open demo and reset controls"
-          onPress={() => setDemoOpen((v) => !v)}
-        >
-          <GradientTitle size={36}>{draft.habit}</GradientTitle>
-        </Pressable>
+        <GradientTitle size={36}>{draft.habit}</GradientTitle>
       </View>
       {localDemo && (
         <Text style={[styles.localDemo, { marginTop: 14 }]}>Local demo · no messages are sent</Text>
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        style={{ alignSelf: 'flex-start', marginTop: 12 }}
-        accessibilityState={{ expanded: demoOpen }}
-        onPress={() => setDemoOpen((v) => !v)}
-      >
-        <Button.Label style={{ color: colors.accent }}>
-          {demoOpen ? 'Hide demo controls' : 'Demo controls'}
-        </Button.Label>
-      </Button>
-      <ResetButton />
       <PhotoSendDiagnostic />
-      {demoOpen && (
-        <DemoControls
-          now={now}
-          onClose={() => setDemoOpen(false)}
-          onNextDay={() => setDismissed('')}
-        />
-      )}
       <View style={styles.main}>
         {done ? (
           <View style={{ alignItems: 'center', gap: 24 }}>
@@ -366,110 +332,6 @@ export default function Today() {
         <Text style={styles.author}>— {quote[1]}</Text>
       </View>
     </Screen>
-  );
-}
-function ResetButton() {
-  const busy = useHabbit((s) => s.busy);
-  const [confirmReset, setConfirmReset] = useState(false);
-  return (
-    <View style={{ gap: 8, marginTop: 8 }}>
-      {confirmReset ? (
-        <>
-          <Text style={ui.copy}>Clear your progress and return to setup?</Text>
-          <Button variant="secondary" isDisabled={busy} onPress={() => void action(resetChallenge)}>
-            <Button.Label>{busy ? 'Resetting…' : 'Yes, reset app'}</Button.Label>
-          </Button>
-          <Button variant="ghost" isDisabled={busy} onPress={() => setConfirmReset(false)}>
-            <Button.Label>Cancel</Button.Label>
-          </Button>
-        </>
-      ) : (
-        <Button variant="secondary" isDisabled={busy} onPress={() => setConfirmReset(true)}>
-          <Button.Label>Reset app</Button.Label>
-        </Button>
-      )}
-      <AccountActions />
-    </View>
-  );
-}
-function DemoControls({
-  now,
-  onClose,
-  onNextDay,
-}: {
-  now: number;
-  onClose: () => void;
-  onNextDay: () => void;
-}) {
-  const busy = useHabbit((s) => s.busy);
-  const localDemo = useHabbit((s) => s.localDemo);
-  const draft = useHabbit((s) => s.draft);
-  const days = useHabbit((s) => s.days);
-  const day = currentDay(days, now);
-  return (
-    <View style={[ui.panel, { marginTop: 20, gap: 12 }]}>
-      <View style={ui.row}>
-        <SectionLabel>Demo controls</SectionLabel>
-        <Button
-          isIconOnly
-          variant="ghost"
-          size="sm"
-          accessibilityLabel="Close demo controls"
-          onPress={onClose}
-        >
-          <X size={18} color={colors.muted} />
-        </Button>
-      </View>
-      {!localDemo && <Text style={ui.copy}>These controls use your connected Telegram group.</Text>}
-      <Button
-        variant="secondary"
-        isDisabled={busy}
-        onPress={() => {
-          void action(fireAlarm);
-        }}
-      >
-        <Button.Label>Fire alarm now</Button.Label>
-      </Button>
-      <Button
-        variant="secondary"
-        isDisabled={busy}
-        onPress={() => {
-          void action(nextDemoDay);
-          onNextDay();
-        }}
-      >
-        <Button.Label>Next day</Button.Label>
-      </Button>
-      <Button
-        variant="secondary"
-        isDisabled={busy}
-        onPress={() => {
-          void save({ draft: { ...draft, proofMinutes: 1, approvalMinutes: 1 } }).catch(
-            reportError,
-          );
-          void Haptics.selectionAsync();
-        }}
-      >
-        <Button.Label>Use 1-minute windows</Button.Label>
-      </Button>
-      {localDemo && day?.status === 'VOTING' && (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {[true, false].map((approve) => (
-            <Button
-              key={String(approve)}
-              variant="secondary"
-              style={{ flex: 1 }}
-              isDisabled={busy}
-              onPress={() => {
-                void action(() => demoVote(approve));
-              }}
-            >
-              <Button.Label>{approve ? 'Vote real' : 'Vote fake'}</Button.Label>
-            </Button>
-          ))}
-        </View>
-      )}
-    </View>
   );
 }
 const styles = StyleSheet.create({

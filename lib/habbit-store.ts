@@ -144,17 +144,65 @@ const savedSchema = z
     notificationsReady: z.boolean(),
   })
   .partial();
-function parseSaved(raw: string): Partial<Saved> {
+type ChallengeCollection = { activeId: string; challenges: Record<string, Saved> };
+function parseSaved(raw: string): Partial<Saved> & ChallengeCollection {
   const value: unknown = JSON.parse(raw);
-  return savedSchema.parse(value);
+  const parsed = savedSchema.parse(value);
+  const collection = z
+    .object({
+      activeId: z.string().default('legacy'),
+      challenges: z.record(z.string(), savedSchema).default({}),
+    })
+    .parse(value);
+  const challenges = Object.fromEntries(
+    Object.entries(collection.challenges).map(([id, challenge]) => [
+      id,
+      { ...fresh(), ...challenge },
+    ]),
+  );
+  return { ...parsed, activeId: collection.activeId, challenges };
 }
 const key = 'habbit.v1';
 let writes = Promise.resolve();
 export const useHabbit = create<
-  Saved & { hydrated: boolean; error: string | null; busy: boolean; photoStage: PhotoStage | null }
->(() => ({ ...fresh(), hydrated: false, error: null, busy: false, photoStage: null }));
+  Saved &
+    ChallengeCollection & {
+      hydrated: boolean;
+      error: string | null;
+      busy: boolean;
+      photoStage: PhotoStage | null;
+    }
+>(() => ({
+  ...fresh(),
+  activeId: 'legacy',
+  challenges: {},
+  hydrated: false,
+  error: null,
+  busy: false,
+  photoStage: null,
+}));
+export function challengeSnapshot(): Saved {
+  const {
+    activeId: _id,
+    challenges: _challenges,
+    hydrated: _hydrated,
+    error: _error,
+    busy: _busy,
+    photoStage: _photoStage,
+    ...snapshot
+  } = useHabbit.getState();
+  return snapshot;
+}
+export function allChallenges(): Record<string, Saved> {
+  const state = useHabbit.getState();
+  return { ...state.challenges, [state.activeId]: challengeSnapshot() };
+}
 export async function save(patch: Partial<Saved>) {
   useHabbit.setState(patch);
+  const state = useHabbit.getState();
+  useHabbit.setState({
+    challenges: { ...state.challenges, [state.activeId]: challengeSnapshot() },
+  });
   const {
     hydrated: _hydrated,
     error: _error,
@@ -166,6 +214,34 @@ export async function save(patch: Partial<Saved>) {
     .catch(() => undefined)
     .then(() => AsyncStorage.setItem(key, JSON.stringify(value)));
   await writes;
+}
+export async function saveChallenge(id: string, patch: Partial<Saved>) {
+  if (id === useHabbit.getState().activeId) return save(patch);
+  const state = useHabbit.getState();
+  const existing = state.challenges[id];
+  if (!existing) throw new Error('This challenge could not be found.');
+  useHabbit.setState({ challenges: { ...state.challenges, [id]: { ...existing, ...patch } } });
+  await save({});
+}
+export async function selectChallenge(id: string) {
+  const snapshot = allChallenges()[id];
+  if (!snapshot) throw new Error('This challenge could not be found.');
+  useHabbit.setState({ ...snapshot, activeId: id, error: null, photoStage: null });
+  await save({});
+}
+export async function createChallenge() {
+  const state = useHabbit.getState();
+  const id = `challenge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  useHabbit.setState({ challenges: allChallenges() });
+  useHabbit.setState({
+    ...fresh(),
+    activeId: id,
+    draft: { ...defaults, name: state.draft.name, gender: state.draft.gender },
+    setupStep: state.draft.name ? 2 : 0,
+    error: null,
+    photoStage: null,
+  });
+  await save({});
 }
 export async function hydrate() {
   try {
@@ -192,6 +268,29 @@ export async function hydrate() {
           platform: Platform.OS,
         }
       : useHabbit.getState().photoDiagnostic;
+    for (const [id, challenge] of Object.entries(useHabbit.getState().challenges)) {
+      await saveChallenge(id, {
+        photoDiagnostic: Object.entries(challenge.deliveries).some(
+          ([deliveryId, item]) => deliveryId.startsWith('proof:') && item.status === 'attempting',
+        )
+          ? {
+              stage: 'upload',
+              code: 'PHOTO_SEND_INTERRUPTED',
+              message:
+                'The app closed while uploading or sending. Check your Telegram group; do not resend.',
+              delivery: 'unknown',
+              recordedAt: new Date().toISOString(),
+              platform: Platform.OS,
+            }
+          : challenge.photoDiagnostic,
+        deliveries: Object.fromEntries(
+          Object.entries(challenge.deliveries).map(([deliveryId, item]) => [
+            deliveryId,
+            item.status === 'attempting' ? { ...item, status: 'uncertain' as const } : item,
+          ]),
+        ),
+      });
+    }
     await save({ deliveries, photoDiagnostic });
     useHabbit.setState({ hydrated: true });
   } catch {
@@ -205,7 +304,15 @@ export async function resetApp() {
   await writes.catch(() => undefined);
   const owner = await AsyncStorage.getItem('habbit.owner');
   await AsyncStorage.multiRemove([key, ...(owner ? [`habbit.account.${owner}`] : [])]);
-  useHabbit.setState({ ...fresh(), hydrated: true, error: null, busy: false, photoStage: null });
+  useHabbit.setState({
+    ...fresh(),
+    activeId: 'legacy',
+    challenges: {},
+    hydrated: true,
+    error: null,
+    busy: false,
+    photoStage: null,
+  });
 }
 export async function rememberHabitOwner(userId: string) {
   if (!(await AsyncStorage.getItem('habbit.owner')))
@@ -221,6 +328,8 @@ export async function bindHabitAccount(userId: string, previousSessionId: string
     const restored = await AsyncStorage.getItem(`habbit.account.${userId}`);
     useHabbit.setState({
       ...fresh(),
+      activeId: 'legacy',
+      challenges: {},
       ...(restored ? parseSaved(restored) : {}),
       hydrated: true,
       error: null,

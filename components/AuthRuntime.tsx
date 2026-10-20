@@ -81,7 +81,10 @@ export function AuthRuntime() {
           if (context.error) throw context.error;
           if (!context.data) throw new Error(authErrorText(null));
           // Recover only server-verified ownership. Never send a fresh reset code for an existing account.
-          if (context.data.code || context.data.group) {
+          if (
+            useHabbit.getState().activeId === 'legacy' &&
+            (context.data.code || context.data.group)
+          ) {
             const state = useHabbit.getState();
             await save({
               ...(context.data.code ? { code: context.data.code } : {}),
