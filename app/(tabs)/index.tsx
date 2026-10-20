@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Bell, Users, Check, ArrowUpRight, Camera, Radio, Pencil } from 'lucide-react-native';
-import { Button, Skeleton } from 'heroui-native';
+import { Bell, Users, Check, ArrowUpRight, Camera, Radio, Pencil, Plus } from 'lucide-react-native';
+import { Button, Skeleton, Spinner } from 'heroui-native';
+import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,7 +16,7 @@ import { GradientTitle } from '@/components/GradientTitle';
 import { SetupFlow } from '@/components/SetupFlow';
 import { PhotoSendDiagnostic } from '@/components/PhotoSendDiagnostic';
 import { AccountIcon } from '@/components/AccountIcon';
-import { useHabbit, currentDay, finished, save } from '@/lib/habbit-store';
+import { useHabbit, currentDay, finished, save, createChallenge } from '@/lib/habbit-store';
 import { action, openLocalDemo } from '@/lib/habbit-engine';
 import { quotes } from '@/lib/habbit-copy';
 import { colors, headingFont } from '@/lib/habbit-theme';
@@ -86,6 +87,19 @@ export default function Today() {
   const day = currentDay(days, now);
   const done = finished(days);
   const [dismissed, setDismissed] = useState('');
+  const [adding, setAdding] = useState(false);
+  const busy = useHabbit((s) => s.busy);
+  const addHabit = async () => {
+    setAdding(true);
+    try {
+      await action(async () => {
+        await createChallenge();
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      });
+    } finally {
+      setAdding(false);
+    }
+  };
   // Explicit preview-only demo entry; never substitutes for a real Telegram connection.
   useEffect(() => {
     if (hydrated && params.demo === '1' && !started) void action(openLocalDemo);
@@ -299,6 +313,21 @@ export default function Today() {
           <Pencil size={15} strokeWidth={1.8} color={colors.accent} />
           <Button.Label numberOfLines={1} style={{ color: colors.accent }}>
             Edit habit
+          </Button.Label>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          isDisabled={busy || adding}
+          onPress={() => void addHabit()}
+        >
+          {adding ? (
+            <Spinner size="sm" color={colors.accent} />
+          ) : (
+            <Plus size={15} strokeWidth={1.8} color={colors.accent} />
+          )}
+          <Button.Label numberOfLines={1} style={{ color: colors.accent }}>
+            {adding ? 'Adding habit…' : 'Add new habit'}
           </Button.Label>
         </Button>
       </View>
