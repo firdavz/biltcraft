@@ -53,6 +53,7 @@ declare module '@biltme/backend' {
             self_id: number
             title: string
             created_at: string
+            removed: boolean
           }
           Insert: {
             owner_id: string
@@ -60,6 +61,7 @@ declare module '@biltme/backend' {
             self_id: number
             title: string
             created_at?: string
+            removed?: boolean
           }
           Update: {
             owner_id?: string
@@ -67,6 +69,7 @@ declare module '@biltme/backend' {
             self_id?: number
             title?: string
             created_at?: string
+            removed?: boolean
           }
           Relationships: []
         }
@@ -115,18 +118,33 @@ declare module '@biltme/backend' {
             code: string
             expires_at: string
             local_code: string
+            looking_since: string | null
+            telegram_user_id: number | null
+            ignored_chat_ids: number[]
+            candidate: Json | null
+            candidate_priority: number | null
           }
           Insert: {
             owner_id: string
             code?: string
             expires_at?: string
             local_code: string
+            looking_since?: string | null
+            telegram_user_id?: number | null
+            ignored_chat_ids?: number[]
+            candidate?: Json | null
+            candidate_priority?: number | null
           }
           Update: {
             owner_id?: string
             code?: string
             expires_at?: string
             local_code?: string
+            looking_since?: string | null
+            telegram_user_id?: number | null
+            ignored_chat_ids?: number[]
+            candidate?: Json | null
+            candidate_priority?: number | null
           }
           Relationships: []
         }

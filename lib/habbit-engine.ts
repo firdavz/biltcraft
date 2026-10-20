@@ -19,7 +19,7 @@ import {
   type Day,
   type HabitConfig,
 } from './habbit-store';
-import { findConnection, checkGroup, appendMedia, syncConnection } from './habbit-connection';
+import { checkGroup, appendMedia, syncConnection } from './habbit-connection';
 import { approvedMessage, shameMessage, kickoff } from './habbit-copy';
 import { scheduleAlarms, cancelAlarms } from './habbit-notifications';
 import { PhotoSendError, recordPhotoFailure } from './photo-diagnostics';
@@ -150,6 +150,7 @@ export async function reconcile() {
       await resolveDay(day, 'APPROVED', true, false);
   }
   const state = useHabbit.getState();
+  if (state.groupRemoved || state.reconnecting) return;
   for (const day of state.days) {
     if (['APPROVED', 'MISSED', 'REJECTED'].includes(day.status)) await flushDay(day);
   }
@@ -161,7 +162,6 @@ export async function reconcile() {
 }
 
 async function handleUpdate(update: TelegramUpdate) {
-  await findConnection(update);
   const q = update.callback_query;
   if (!q) return;
   const s = useHabbit.getState();
@@ -194,11 +194,25 @@ async function handleUpdate(update: TelegramUpdate) {
 export async function pollUpdates() {
   const state = useHabbit.getState();
   if (!state.hydrated || state.localDemo || !telegramConfigured()) return;
+  if (
+    !state.started &&
+    !state.group &&
+    !['waiting', 'found', 'tooFew', 'notFound'].includes(state.connectionStage)
+  )
+    return;
   await syncConnection();
+  const latest = useHabbit.getState();
+  if (
+    latest.connectionStage === 'waiting' &&
+    latest.connectionSince &&
+    Date.now() - latest.connectionSince >= 60000
+  ) {
+    await save({ connectionStage: 'notFound' });
+  }
   const updates = await telegram<TelegramUpdate[]>('getUpdates', {
     offset: useHabbit.getState().offset,
     timeout: 0,
-    allowed_updates: ['message', 'callback_query'],
+    allowed_updates: ['message', 'my_chat_member', 'callback_query'],
   });
   for (const update of updates) {
     await handleUpdate(update);
@@ -207,8 +221,7 @@ export async function pollUpdates() {
 }
 export async function startChallenge() {
   const s = useHabbit.getState();
-  if (!s.group || s.group.selfId === null)
-    throw new Error(`Send ${s.code} in your group from your own Telegram account first.`);
+  if (!s.group || s.group.selfId === null) throw new Error('Connect your Telegram group first.');
   const count = await checkGroup();
   if (count < 3) throw new Error('Add a witness to your group');
   if (s.deliveries.kickoff?.status === 'uncertain' || s.deliveries.kickoff?.status === 'attempting')

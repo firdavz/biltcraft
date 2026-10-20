@@ -35,6 +35,12 @@ export type TelegramMessage = {
 export type TelegramUpdate = {
   update_id: number;
   message?: TelegramMessage;
+  my_chat_member?: {
+    chat: TelegramChat;
+    from: { id: number };
+    date: number;
+    new_chat_member: { status: string };
+  };
   callback_query?: { id: string; from: { id: number }; data?: string; message?: TelegramMessage };
 };
 export class TelegramError extends Error {}

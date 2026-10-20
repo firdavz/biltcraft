@@ -86,6 +86,8 @@ export default function Today() {
   const draft = useHabbit((s) => s.draft);
   const days = useHabbit((s) => s.days);
   const group = useHabbit((s) => s.group);
+  const groupRemoved = useHabbit((s) => s.groupRemoved);
+  const reconnecting = useHabbit((s) => s.reconnecting);
   const localDemo = useHabbit((s) => s.localDemo);
   const notificationsReady = useHabbit((s) => s.notificationsReady);
   const now = useNow();
@@ -110,11 +112,11 @@ export default function Today() {
         </View>
       </Screen>
     );
-  if (!started || !day) return <SetupFlow />;
+  if (!started || !day || reconnecting) return <SetupFlow />;
   const resultKey = `${day.day}:${day.status}`;
   const showResult =
     ['APPROVED', 'MISSED', 'REJECTED'].includes(day.status) && dismissed !== resultKey && !done;
-  if (showResult) {
+  if (showResult && !groupRemoved) {
     const failed = day.status !== 'APPROVED';
     const shame = day.shame?.replace(/\p{Extended_Pictographic}|\uFE0F/gu, '').trim();
     return (
@@ -209,6 +211,26 @@ export default function Today() {
           {new Date(now).toLocaleDateString([], { month: 'short', day: 'numeric' })}
         </Text>
       </View>
+      {groupRemoved && (
+        <View style={{ gap: 12, marginTop: 24 }}>
+          <Text style={ui.copy}>Habbit was removed from your group</Text>
+          <Button
+            variant="secondary"
+            onPress={() =>
+              void action(async () => {
+                await save({
+                  setupStep: 6,
+                  reconnecting: true,
+                  connectionStage: 'intro',
+                  connectionSince: null,
+                });
+              })
+            }
+          >
+            <Button.Label style={{ color: colors.accent }}>Reconnect</Button.Label>
+          </Button>
+        </View>
+      )}
       <View style={{ marginTop: 36, gap: 14 }}>
         <SectionLabel color={colors.accent}>
           {done ? 'Challenge complete' : `Day ${day.day} / ${draft.totalDays}`}
@@ -270,7 +292,7 @@ export default function Today() {
             <Clock deadline={day.proofDeadline} now={now} short />
             <View style={{ width: '100%', marginTop: 26 }}>
               <ActionButton
-                disabled={now >= day.proofDeadline}
+                disabled={now >= day.proofDeadline || groupRemoved}
                 onPress={() => router.push('/camera')}
                 icon={<Camera size={20} color={colors.accent} />}
               >

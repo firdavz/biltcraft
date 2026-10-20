@@ -35,7 +35,12 @@ export type PhotoDiagnostic = {
   recordedAt: string;
   platform: string;
 };
+export type ConnectionStage = 'intro' | 'waiting' | 'found' | 'tooFew' | 'notFound' | 'connected';
 export type Saved = {
+  connectionStage: ConnectionStage;
+  connectionSince: number | null;
+  groupRemoved: boolean;
+  reconnecting: boolean;
   photoDiagnostic: PhotoDiagnostic | null;
   draft: HabitConfig;
   setupStep: number;
@@ -60,6 +65,10 @@ const defaults: HabitConfig = {
 };
 function fresh(): Saved {
   return {
+    connectionStage: 'intro',
+    connectionSince: null,
+    groupRemoved: false,
+    reconnecting: false,
     photoDiagnostic: null,
     draft: { ...defaults },
     setupStep: 0,
@@ -76,6 +85,10 @@ function fresh(): Saved {
 // Older records may omit newer fields; validate present values and retain fresh defaults.
 const savedSchema = z
   .object({
+    connectionStage: z.enum(['intro', 'waiting', 'found', 'tooFew', 'notFound', 'connected']),
+    connectionSince: z.number().nullable(),
+    groupRemoved: z.boolean(),
+    reconnecting: z.boolean(),
     photoDiagnostic: z
       .object({
         stage: z.enum(['capture', 'upload', 'telegram']),

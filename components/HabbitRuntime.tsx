@@ -41,7 +41,7 @@ export function HabbitRuntime() {
     const listener = AppState.addEventListener('change', (status) => {
       if (status !== 'active' || !canRunHabit()) return;
       const s = useHabbit.getState();
-      if (!s.started || s.localDemo) return;
+      if (s.localDemo) return;
       void serial(async () => {
         if (cancelled || !canRunHabit()) return;
         try {
@@ -50,9 +50,10 @@ export function HabbitRuntime() {
           reportError(error);
         }
         await reconcile();
-        await save({
-          notificationsReady: await scheduleAlarms(useHabbit.getState().days, s.draft),
-        });
+        if (s.started)
+          await save({
+            notificationsReady: await scheduleAlarms(useHabbit.getState().days, s.draft),
+          });
       }).catch(reportError);
     });
     return () => {

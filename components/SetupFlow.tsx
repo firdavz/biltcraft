@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Linking } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Button, Input, Label, TextField } from 'heroui-native';
-import { ChevronLeft, Users, Check, Send, Copy } from 'lucide-react-native';
+import { ChevronLeft, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
 import type { PropsWithChildren } from 'react';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from './HabbitUI';
 import { GradientTitle } from './GradientTitle';
@@ -15,8 +14,7 @@ import { bilt } from '@/lib/bilt';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { save, useHabbit, type HabitConfig } from '@/lib/habbit-store';
 import { action, startChallenge, reportError, openLocalDemo } from '@/lib/habbit-engine';
-import { connectionLink, telegramConfigured, sendMessage, getBotUsername } from '@/lib/telegram';
-import { checkGroup, connectManually, syncConnection } from '@/lib/habbit-connection';
+import { TelegramGroupSetup } from './TelegramGroupSetup';
 
 const titles = [
   'What should we\ncall you?',
@@ -25,7 +23,7 @@ const titles = [
   'How long will\nyou commit?',
   'Set your\nmoment of truth.',
   'Give your\nwitnesses time.',
-  'Connect your\nTelegram group.',
+  "Who's watching\nyou?",
 ];
 function GuideStep({
   number,
@@ -51,47 +49,9 @@ export function SetupFlow() {
   const step = useHabbit((s) => s.setupStep);
   const draft = useHabbit((s) => s.draft);
   const group = useHabbit((s) => s.group);
-  const code = useHabbit((s) => s.code);
+  const connectionStage = useHabbit((s) => s.connectionStage);
+  const reconnecting = useHabbit((s) => s.reconnecting);
   const busy = useHabbit((s) => s.busy);
-  const [manual, setManual] = useState(false);
-  const [chatId, setChatId] = useState('');
-  const [tested, setTested] = useState(false);
-  const [botUsername, setBotUsername] = useState('');
-  const [copiedValue, setCopiedValue] = useState<string | null>(null);
-  const [copying, setCopying] = useState(false);
-  const command = botUsername ? `/start@${botUsername} ${code}` : '';
-  useEffect(() => {
-    if (!copiedValue) return undefined;
-    const timer = setTimeout(() => setCopiedValue(null), 2500);
-    return () => clearTimeout(timer);
-  }, [copiedValue]);
-  async function copyText(value: string) {
-    setCopying(true);
-    try {
-      const copied = await Clipboard.setStringAsync(value);
-      if (!copied) throw new Error('Could not copy. Select the text and copy it, or try again.');
-      setCopiedValue(value);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      reportError(new Error('Could not copy. Select the text and copy it, or try again.'));
-    } finally {
-      setCopying(false);
-    }
-  }
-  useEffect(() => {
-    if (step !== 6 || !telegramConfigured()) return undefined;
-    let active = true;
-    void getBotUsername()
-      .then((username) => {
-        if (active) setBotUsername(username);
-      })
-      .catch((error: unknown) => {
-        if (active) reportError(error);
-      });
-    return () => {
-      active = false;
-    };
-  }, [step]);
   const [custom, setCustom] = useState<Record<string, boolean>>({});
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const select = (patch: Partial<HabitConfig>) => {
@@ -206,24 +166,25 @@ export function SetupFlow() {
             <ActionButton onPress={next} busy={busy}>
               Continue
             </ActionButton>
-          ) : (
+          ) : connectionStage === 'connected' ? (
             <ActionButton
               busy={busy}
-              disabled={!group || group.memberCount < 3 || group.selfId === null || !tested}
+              disabled={!group || group.memberCount < 3 || group.selfId === null}
               onPress={() => {
-                void action(startChallenge);
+                void action(async () => {
+                  if (reconnecting) await save({ reconnecting: false });
+                  else await startChallenge();
+                });
               }}
             >
-              Start my challenge
+              {reconnecting ? 'Back to today' : 'Start my challenge'}
             </ActionButton>
+          ) : null}
+          {step !== 6 && (
+            <Text style={styles.footerCopy}>
+              {step === 0 ? copy.setupFooter : 'One habit. One day at a time.'}
+            </Text>
           )}
-          <Text style={styles.footerCopy}>
-            {step === 0
-              ? copy.setupFooter
-              : step === 6
-                ? 'Your proof goes to this group every day.'
-                : 'One habit. One day at a time.'}
-          </Text>
         </>
       }
     >
@@ -248,7 +209,7 @@ export function SetupFlow() {
           />
         ))}
       </View>
-      {step > 0 && (
+      {step > 0 && !reconnecting && (
         <Button
           isIconOnly
           variant="ghost"
@@ -348,189 +309,7 @@ export function SetupFlow() {
           </Text>
         </View>
       )}
-      {step === 6 && (
-        <View style={{ gap: 20 }}>
-          <GuideStep number={1} title="Create a group with a friend" />
-          <GuideStep number={2} title="Add the bot to that group">
-            <ActionButton
-              busy={busy}
-              disabled={!telegramConfigured()}
-              icon={<Send size={18} color={colors.accent} />}
-              onPress={() => {
-                void action(async () => {
-                  await syncConnection();
-                  const link = await connectionLink(useHabbit.getState().code);
-                  setBotUsername(await getBotUsername());
-                  await Linking.openURL(link);
-                });
-              }}
-            >
-              Add bot to my group
-            </ActionButton>
-          </GuideStep>
-          <GuideStep number={3} title="Paste the command in your group">
-            <Text style={ui.copy}>Send it yourself, then return here.</Text>
-            <View style={[ui.panel, { padding: 14, gap: 12 }]}>
-              <Text style={styles.fieldLabel}>Your connection code</Text>
-              <View style={[ui.row, { gap: 12, alignItems: 'flex-start' }]}>
-                <Text selectable style={styles.connectionCode}>
-                  {code}
-                </Text>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  style={{ minHeight: 44 }}
-                  isDisabled={copying || !code}
-                  accessibilityLabel="Copy connection code"
-                  onPress={() => {
-                    void copyText(code);
-                  }}
-                >
-                  {copiedValue === code ? (
-                    <Check size={16} color={colors.accent} />
-                  ) : (
-                    <Copy size={16} color={colors.accent} />
-                  )}
-                  <Button.Label style={{ color: colors.accent }}>
-                    {copiedValue === code ? 'Copied' : 'Copy'}
-                  </Button.Label>
-                </Button>
-              </View>
-              <View style={ui.divider} />
-              <Text selectable style={[ui.copy, { color: colors.foreground }]}>
-                {command || 'Loading your connection message…'}
-              </Text>
-              <Button
-                variant="secondary"
-                isDisabled={copying || !command}
-                onPress={() => {
-                  void copyText(command);
-                }}
-              >
-                {copiedValue === command ? (
-                  <Check size={16} color={colors.accent} />
-                ) : (
-                  <Copy size={16} color={colors.accent} />
-                )}
-                <Button.Label style={{ color: colors.accent }}>
-                  {copiedValue === command ? 'Copied' : 'Copy command'}
-                </Button.Label>
-              </Button>
-            </View>
-          </GuideStep>
-          {!telegramConfigured() && (
-            <Text style={ui.copy}>
-              Your bot is not available yet. Reopen the app and try again.
-            </Text>
-          )}
-          {group ? (
-            <View style={[ui.panel, { gap: 16 }]}>
-              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <Users size={22} color={colors.accent} />
-                <Text
-                  style={[
-                    ui.copy,
-                    { flex: 1, color: colors.foreground, fontFamily: 'Inter_600SemiBold' },
-                  ]}
-                >
-                  {group.title}
-                </Text>
-              </View>
-              <Text style={ui.copy}>
-                {group.memberCount < 3
-                  ? 'Add a witness to your group'
-                  : `${group.memberCount - 2} ${group.memberCount - 2 === 1 ? 'witness is' : 'witnesses are'} ready.`}
-              </Text>
-              {group.selfId === null && (
-                <Text style={ui.copy}>
-                  Send {botUsername ? `/start@${botUsername}` : '/start'} {code} in the group to
-                  identify your Telegram account.
-                </Text>
-              )}
-              <Text style={ui.copy}>
-                {tested ? 'Ready to start.' : 'Send a test message to finish.'}
-              </Text>
-              <View style={{ gap: 8 }}>
-                <Button
-                  variant="secondary"
-                  isDisabled={busy}
-                  onPress={() => {
-                    void action(async () => {
-                      const count = await checkGroup();
-                      if (count < 3) throw new Error('Add a witness to your group');
-                      void Haptics.selectionAsync();
-                    });
-                  }}
-                >
-                  <Button.Label>Check again</Button.Label>
-                </Button>
-                {group.memberCount >= 3 && (
-                  <Button
-                    variant="secondary"
-                    isDisabled={busy}
-                    onPress={() => {
-                      void action(async () => {
-                        await sendMessage(
-                          group.id,
-                          `Habbit is connected. ${draft.name}'s witnesses, are you ready?`,
-                        );
-                        setTested(true);
-                        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      });
-                    }}
-                  >
-                    <Button.Label>
-                      {tested ? 'Test message sent' : 'Send a test message'}
-                    </Button.Label>
-                  </Button>
-                )}
-              </View>
-            </View>
-          ) : (
-            <Text style={[ui.copy, { textAlign: 'center' }]}>Waiting for your group…</Text>
-          )}
-          <Button
-            variant="ghost"
-            onPress={() => {
-              setManual((v) => !v);
-              void Haptics.selectionAsync();
-            }}
-          >
-            <Button.Label style={{ color: colors.muted }}>
-              {manual ? 'Hide connection help' : 'Trouble connecting?'}
-            </Button.Label>
-          </Button>
-          {manual && (
-            <View style={{ gap: 12 }}>
-              <TextField>
-                <Label>Telegram chat ID</Label>
-                <Input
-                  value={chatId}
-                  onChangeText={setChatId}
-                  placeholder="-1001234567890"
-                  keyboardType="numbers-and-punctuation"
-                />
-              </TextField>
-              <Button
-                variant="secondary"
-                isDisabled={busy || !chatId.trim()}
-                onPress={() => {
-                  void action(async () => {
-                    await connectManually(chatId);
-                    setTested(false);
-                  });
-                }}
-              >
-                <Button.Label>Use chat ID</Button.Label>
-              </Button>
-            </View>
-          )}
-          <Text style={[ui.copy, { fontSize: 12 }]}>
-            Keep Habbit open for live votes. If it is closed, missed days and expired votes are
-            resolved when you return.
-          </Text>
-        </View>
-      )}
+      {step === 6 && <TelegramGroupSetup />}
       {step === 0 && (
         <View style={styles.promise}>
           <GuideStep number={1} title="Choose a habit" />
@@ -595,14 +374,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 15,
     lineHeight: 24,
-    color: colors.foreground,
-  },
-  connectionCode: {
-    flex: 1,
-    flexShrink: 1,
-    fontFamily: headingFont,
-    fontSize: 20,
-    lineHeight: 29,
     color: colors.foreground,
   },
 });

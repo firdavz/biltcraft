@@ -1,74 +1,108 @@
-import { Platform } from 'react-native';
-import { telegram, type TelegramUpdate, type TelegramChat } from './telegram';
-import { save, useHabbit } from './habbit-store';
+import { Platform, Linking } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { telegram, connectionLink } from './telegram';
+import { save, useHabbit, type Group } from './habbit-store';
 
+export async function beginConnection() {
+  await syncConnection();
+  if (useHabbit.getState().connectionStage === 'connected' && !useHabbit.getState().groupRemoved)
+    return;
+  const result = await telegram<{ code: string; lookingSince: number }>('beginConnection');
+  await save({
+    code: result.code,
+    connectionSince: result.lookingSince,
+    connectionStage: 'waiting',
+    ...(useHabbit.getState().started ? {} : { group: null }),
+  });
+  try {
+    const link = await connectionLink(result.code);
+    await Linking.openURL(link);
+  } catch (error) {
+    await telegram('cancelConnection');
+    await save({ connectionStage: 'intro', connectionSince: null });
+    throw error;
+  }
+}
+export async function cancelConnection() {
+  await telegram('cancelConnection');
+  await save({
+    connectionStage: 'intro',
+    connectionSince: null,
+    ...(useHabbit.getState().started ? {} : { group: null }),
+  });
+  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+}
+export async function rejectGroup() {
+  const group = useHabbit.getState().group;
+  if (!group) return;
+  await telegram('rejectGroup', { chat_id: group.id });
+  await save({ group: null, connectionStage: 'waiting', connectionSince: Date.now() });
+  void Haptics.selectionAsync();
+}
+export async function confirmGroup() {
+  const state = useHabbit.getState();
+  if (!state.group) throw new Error('Choose your Telegram group first.');
+  if ((await checkGroup()) < 3) return;
+  const group = await telegram<Group>('confirmGroup', {
+    chat_id: state.group.id,
+    name: state.draft.name,
+  });
+  await save({ group, connectionStage: 'connected', connectionSince: null, groupRemoved: false });
+  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+}
 export async function syncConnection() {
   const state = useHabbit.getState();
   const result = await telegram<{
     code: string;
     group: { id: number; selfId: number; title: string } | null;
+    removed: boolean;
+    candidate: { id: number; selfId: number; title: string } | null;
+    lookingSince: number | null;
   }>('syncConnection', {
     code: state.code,
-    group: state.group,
+    group: state.connectionStage === 'connected' || state.started ? state.group : null,
     message_ids: state.days.flatMap((day) => (day.messageId === undefined ? [] : [day.messageId])),
   });
-  // A reset may have happened while the connection request was in flight.
   if (useHabbit.getState().code !== state.code) return;
+  const connected = result.removed ? null : result.group;
+  const candidate = ['waiting', 'found', 'tooFew', 'notFound'].includes(state.connectionStage)
+    ? result.candidate
+    : null;
+  const group = connected || candidate;
+  const nextGroup = group
+    ? { ...group, memberCount: state.group?.id === group.id ? state.group.memberCount : 0 }
+    : null;
   await save({
     code: result.code,
-    ...(result.group
-      ? {
-          group: {
-            ...result.group,
-            memberCount: state.group?.id === result.group.id ? state.group.memberCount : 0,
-          },
-        }
+    groupRemoved: result.removed,
+    ...(result.removed && !state.started && state.connectionStage === 'connected' && !candidate
+      ? { connectionStage: 'intro' }
       : {}),
+    ...(connected
+      ? { group: nextGroup, connectionStage: 'connected', connectionSince: null }
+      : candidate
+        ? { group: nextGroup }
+        : {}),
   });
-  if (result.group && state.group?.id !== result.group.id) await checkGroup();
+  if (nextGroup && !connected) {
+    const count = await checkGroup();
+    await save({ connectionStage: count < 3 ? 'tooFew' : 'found' });
+  } else if (nextGroup && (state.group?.id !== nextGroup.id || nextGroup.memberCount === 0))
+    await checkGroup();
 }
-
 export async function checkGroup() {
-  const group = useHabbit.getState().group;
+  const state = useHabbit.getState();
+  const group = state.group;
   if (!group) throw new Error('Connect your Telegram group first.');
   const count = await telegram<number>('getChatMemberCount', { chat_id: group.id });
-  await save({ group: { ...group, memberCount: count } });
+  if (useHabbit.getState().group?.id !== group.id) return count;
+  await save({
+    group: { ...group, memberCount: count },
+    ...(['found', 'tooFew'].includes(state.connectionStage)
+      ? { connectionStage: count < 3 ? 'tooFew' : 'found' }
+      : {}),
+  });
   return count;
-}
-export async function connectManually(id: string) {
-  if (!/^-\d+$/.test(id.trim())) throw new Error('Enter a valid negative Telegram group ID.');
-  const chat = await telegram<TelegramChat>('getChat', { chat_id: id.trim() });
-  if (!['group', 'supergroup'].includes(chat.type))
-    throw new Error('Choose a group, not a private chat or channel.');
-  await save({
-    group: { id: chat.id, title: chat.title || 'Telegram group', memberCount: 0, selfId: null },
-  });
-  await checkGroup();
-}
-export async function findConnection(update: TelegramUpdate) {
-  const state = useHabbit.getState();
-  const m = update.message;
-  if (
-    state.started ||
-    !m ||
-    !['group', 'supergroup'].includes(m.chat.type) ||
-    !m.text ||
-    m.from?.is_bot ||
-    !m.from
-  )
-    return;
-  const escaped = state.code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (!new RegExp(`(^|\\s)${escaped}(\\s|$)`, 'i').test(m.text)) return;
-  if (state.group && state.group.id !== m.chat.id) return;
-  const count = await telegram<number>('getChatMemberCount', { chat_id: m.chat.id });
-  await save({
-    group: {
-      id: m.chat.id,
-      title: m.chat.title || 'Telegram group',
-      selfId: m.from.id,
-      memberCount: count,
-    },
-  });
 }
 export async function appendMedia(form: FormData, field: 'photo', uri: string) {
   const name = 'proof.jpg';
@@ -80,8 +114,7 @@ export async function appendMedia(form: FormData, field: 'photo', uri: string) {
     if (!blob.size) throw new Error('The captured photo is empty.');
     form.append(field, blob, name);
   } else {
-    // React Native accepts URI file descriptors, but the DOM FormData overloads only accept Blob.
-    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- Bridge the native file-descriptor API; this branch never runs on web.
+    // eslint-disable-next-line typescript/no-unsafe-type-assertion -- React Native accepts URI descriptors for file uploads.
     form.append(field, { uri, name, type } as unknown as Blob);
   }
 }
