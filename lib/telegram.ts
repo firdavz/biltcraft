@@ -52,14 +52,14 @@ function photoResponseError(value: unknown): PhotoSendError {
       ? value.photo_diagnostic
       : null;
   const codes: Record<string, string> = {
-    PHOTO_UPLOAD_INVALID: 'The photo could not be read. Retake it and try again.',
-    PHOTO_UPLOAD_TOO_LARGE: 'The photo is over 10 MB. Retake it and try again.',
+    PHOTO_UPLOAD_INVALID: 'The photo could not be read. Try another photo.',
+    PHOTO_UPLOAD_TOO_LARGE: 'The photo is over 10 MB. Try a smaller photo.',
     PHOTO_UPLOAD_REJECTED:
       'The upload was not accepted. Check your witness connection and try again.',
     PHOTO_TELEGRAM_PERMISSION: 'The bot cannot post in your group. Check its group permissions.',
     PHOTO_TELEGRAM_RATE_LIMIT: 'Telegram is busy. Wait a little, then try again.',
     PHOTO_TELEGRAM_REJECTED:
-      'Telegram rejected the photo. Check the bot in your group and retake the photo.',
+      'Telegram rejected the photo. Check the bot in your group and try another photo.',
     PHOTO_TELEGRAM_UNCONFIRMED:
       'Check your Telegram group. Delivery could not be confirmed; do not resend.',
     PHOTO_CONFIRMATION_FAILED:

@@ -312,7 +312,7 @@ async function sendPhotoProof(uri: string) {
     throw new PhotoSendError(
       'upload',
       'PHOTO_READ_FAILED',
-      'The captured photo could not be prepared. Retake it and try again.',
+      'The photo could not be prepared. Try another photo.',
     );
   }
   if (Date.now() >= day.proofDeadline) {

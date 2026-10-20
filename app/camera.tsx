@@ -1,5 +1,13 @@
 import { useRef, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  Platform,
+  StyleSheet,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { Camera, RefreshCw, X } from 'lucide-react-native';
@@ -9,6 +17,7 @@ import { goBackOrReplace } from '@/lib/navigation';
 import { colors, headingFont } from '@/lib/habbit-theme';
 import { action, sendProof, reportError } from '@/lib/habbit-engine';
 import { PhotoSendDiagnostic } from '@/components/PhotoSendDiagnostic';
+import UploadProofButton from '@/components/UploadProofButton';
 import { PhotoSendError, recordPhotoFailure } from '@/lib/photo-diagnostics';
 import { currentDay, useHabbit } from '@/lib/habbit-store';
 import { Screen, ActionButton, ErrorNotice, SectionLabel } from '@/components/HabbitUI';
@@ -56,6 +65,18 @@ export default function ProofCamera() {
     }
   }
 
+  const uploadButton = (
+    <UploadProofButton
+      disabled={busy || capturing || deliveryBlocked}
+      onBusyChange={setCapturing}
+      onSelect={(uri) => {
+        useHabbit.setState({ error: null, photoDiagnostic: null });
+        setProof({ uri });
+      }}
+      onError={(message) => captureFailure('PHOTO_SELECTION_FAILED', message)}
+    />
+  );
+
   if (!started || day?.status !== 'PROOF_WINDOW')
     return (
       <Screen>
@@ -67,16 +88,19 @@ export default function ProofCamera() {
         </View>
       </Screen>
     );
-  if (!permission?.granted)
+  if (!permission?.granted && !proof)
     return (
       <Screen>
         <View style={styles.center}>
           <Camera color={colors.accent} size={40} />
           <Text style={styles.title}>Show up. Show proof.</Text>
           <Text style={styles.copy}>
-            Use your camera to take a photo. No gallery. No old excuses.
+            {Platform.OS === 'web'
+              ? 'Take a photo or upload one from your gallery or files.'
+              : 'Use your camera to take a photo. No gallery. No old excuses.'}
           </Text>
           <ActionButton
+            disabled={capturing || busy}
             onPress={() => {
               void requestPermission()
                 .then(async (p) => {
@@ -96,7 +120,12 @@ export default function ProofCamera() {
           >
             Allow camera
           </ActionButton>
-          <Button variant="ghost" onPress={() => goBackOrReplace('/')}>
+          {uploadButton}
+          <Button
+            variant="ghost"
+            isDisabled={capturing || busy}
+            onPress={() => goBackOrReplace('/')}
+          >
             <Button.Label>Not now</Button.Label>
           </Button>
           {!diagnostic && <ErrorNotice />}
@@ -189,20 +218,25 @@ export default function ProofCamera() {
                 setReady(false);
               }}
             >
-              <Button.Label>Retake</Button.Label>
+              <Button.Label>
+                {Platform.OS === 'web' ? 'Choose another photo' : 'Retake'}
+              </Button.Label>
             </Button>
           </>
         ) : (
-          <ActionButton
-            busy={capturing}
-            disabled={!ready}
-            onPress={() => {
-              void capture();
-            }}
-            icon={<Camera color={colors.accent} size={20} />}
-          >
-            Take photo
-          </ActionButton>
+          <>
+            <ActionButton
+              busy={capturing}
+              disabled={!ready || busy || deliveryBlocked}
+              onPress={() => {
+                void capture();
+              }}
+              icon={<Camera color={colors.accent} size={20} />}
+            >
+              Take photo
+            </ActionButton>
+            {uploadButton}
+          </>
         )}
       </View>
     </View>
