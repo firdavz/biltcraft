@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Button, Input, Label, TextField } from 'heroui-native';
-import { ChevronLeft, Check } from 'lucide-react-native';
+import { Label, TextField } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
+import { HabbitInput as Input } from './HabbitInput';
+import { ChevronLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import type { PropsWithChildren } from 'react';
 import { Screen, Brand, ActionButton, ErrorNotice, SectionLabel, ui } from './HabbitUI';
@@ -72,8 +74,8 @@ export function SetupFlow() {
             <Button
               key={n}
               variant="secondary"
-              className="rounded-xl"
-              style={[styles.choice, draft[field] === n && !isCustom && styles.selected]}
+              selected={draft[field] === n && !isCustom}
+              style={styles.choice}
               onPress={() => {
                 setCustom((c) => ({ ...c, [field]: false }));
                 select({ [field]: n });
@@ -88,8 +90,8 @@ export function SetupFlow() {
           ))}
           <Button
             variant="secondary"
-            className="rounded-xl"
-            style={[styles.choice, isCustom && styles.selected]}
+            selected={isCustom}
+            style={styles.choice}
             onPress={() => {
               setCustom((c) => ({ ...c, [field]: true }));
               setCustomValues((v) => ({ ...v, [field]: String(draft[field]) }));
@@ -241,7 +243,8 @@ export function SetupFlow() {
             <Button
               key={g}
               variant="secondary"
-              style={[styles.gender, draft.gender === g && styles.selected]}
+              selected={draft.gender === g}
+              style={styles.gender}
               onPress={() => select({ gender: g })}
             >
               <Button.Label
@@ -253,7 +256,6 @@ export function SetupFlow() {
               >
                 {g}
               </Button.Label>
-              {draft.gender === g && <Check size={18} color={colors.accent} />}
             </Button>
           ))}
         </View>
@@ -319,23 +321,8 @@ const styles = StyleSheet.create({
   },
   fieldLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, marginBottom: 8, color: colors.muted },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  choice: {
-    minHeight: 54,
-    minWidth: 90,
-    flexGrow: 1,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-  },
-  selected: { borderColor: colors.accent, backgroundColor: 'rgba(167,139,250,0.1)' },
-  gender: {
-    flex: 1,
-    minHeight: 96,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
+  choice: { minHeight: 44, minWidth: 130, flexGrow: 1 },
+  gender: { flex: 1, minHeight: 54 },
   footerCopy: {
     fontFamily: 'Inter_400Regular',
     color: colors.muted,

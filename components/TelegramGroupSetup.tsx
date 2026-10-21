@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
-import { Button } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
 import { Users } from 'lucide-react-native';
 import Animated, {
   useAnimatedStyle,
@@ -142,7 +142,11 @@ export function TelegramGroupSetup() {
       {stage === 'notFound' && (
         <>
           <Text style={ui.copy}>Didn&apos;t see it yet. Make sure you tapped Add in Telegram.</Text>
-          <ActionButton busy={busy} onPress={() => void action(beginConnection)}>
+          <ActionButton
+            variant="secondary"
+            busy={busy}
+            onPress={() => void action(beginConnection)}
+          >
             Try again
           </ActionButton>
           <Text style={[ui.copy, { fontSize: 12 }]}>

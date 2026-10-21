@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
 import { useRouter, Link } from 'expo-router';
-import { Button } from 'heroui-native';
-import { MailCheck, ListChecks, ChevronRight } from 'lucide-react-native';
+import { HabbitButton as Button } from '@/components/HabbitButton';
+import { MailCheck } from 'lucide-react-native';
 import { Screen, ui } from '@/components/HabbitUI';
 import { AccountActions } from '@/components/AccountActions';
 import { useAuth } from '@/lib/auth-state';
@@ -33,30 +33,20 @@ export default function Account() {
         </View>
         <Button
           variant="ghost"
-          style={{
-            minHeight: 72,
-            paddingHorizontal: 0,
-            justifyContent: 'flex-start',
-            borderTopWidth: 1,
-            borderBottomWidth: 1,
-            borderColor: colors.border,
-            borderRadius: 0,
-          }}
+          style={{ justifyContent: 'flex-start' }}
           onPress={() => router.push('/challenges')}
         >
-          <ListChecks size={24} strokeWidth={1.8} color={colors.accent} />
           <Button.Label
             style={{ flex: 1, color: colors.foreground, fontFamily: headingFont, fontSize: 18 }}
           >
             Challenges
           </Button.Label>
           <Text style={ui.copy}>{count}</Text>
-          <ChevronRight size={20} color={colors.muted} strokeWidth={1.8} />
         </Button>
         <AccountActions />
         {!router.canGoBack() && (
-          <Link href="/" style={{ color: colors.accent }}>
-            Today
+          <Link href="/" asChild>
+            <Button variant="secondary">Today</Button>
           </Link>
         )}
       </View>

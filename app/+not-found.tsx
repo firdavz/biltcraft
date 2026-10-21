@@ -1,17 +1,19 @@
 import { Link, Stack } from 'expo-router';
-import { View, Text } from 'react-native';
+import { HabbitButton } from '@/components/HabbitButton';
+import { Screen } from '@/components/HabbitUI';
+import { Text } from 'react-native';
 
 export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
-      <View>
+      <Screen>
         <Text>This screen doesn&apos;t exist.</Text>
 
-        <Link href="/">
-          <Text>Go to home screen!</Text>
+        <Link href="/" asChild>
+          <HabbitButton variant="secondary">Go to home screen!</HabbitButton>
         </Link>
-      </View>
+      </Screen>
     </>
   );
 }

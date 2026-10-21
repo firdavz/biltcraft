@@ -64,8 +64,8 @@
       --default: oklch(0.27 0.05 275);
       --default-foreground: oklch(0.943 0.023 294);
       --focus: oklch(0.811 0.111 293.6);
-      --danger: oklch(0.666 0.228 15);
-      --color-continue: oklch(0.546 0.245 262.9);
+      --danger: oklch(0.811 0.111 293.6);
+      --color-continue: oklch(0.811 0.111 293.6);
     }
     @variant dark {
       --background: oklch(0.18 0.043 271);
@@ -82,8 +82,8 @@
       --default: oklch(0.27 0.05 275);
       --default-foreground: oklch(0.943 0.023 294);
       --focus: oklch(0.811 0.111 293.6);
-      --danger: oklch(0.666 0.228 15);
-      --color-continue: oklch(0.546 0.245 262.9);
+      --danger: oklch(0.811 0.111 293.6);
+      --color-continue: oklch(0.811 0.111 293.6);
     }
   }
 }

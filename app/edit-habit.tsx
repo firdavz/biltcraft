@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { View, Text } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { Button, Dialog } from 'heroui-native';
-import { Users, Trash2 } from 'lucide-react-native';
+import { Dialog } from 'heroui-native';
+import { HabbitButton as Button } from '@/components/HabbitButton';
+import { Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Screen, ActionButton, ui } from '@/components/HabbitUI';
 import { TimePicker } from '@/components/TimePicker';
@@ -56,7 +57,7 @@ export default function EditHabit() {
       footer={
         <View style={{ gap: 12 }}>
           {error && (
-            <Text accessibilityLiveRegion="polite" style={[ui.copy, { color: colors.danger }]}>
+            <Text accessibilityLiveRegion="polite" style={[ui.copy, { color: colors.accent }]}>
               {error}
             </Text>
           )}
@@ -74,8 +75,8 @@ export default function EditHabit() {
             </ActionButton>
           ) : null}
           {!router.canGoBack() && (
-            <Link href="/" style={{ color: colors.accent, textAlign: 'center' }}>
-              Today
+            <Link href="/" asChild>
+              <Button variant="secondary">Today</Button>
             </Link>
           )}
         </View>
@@ -123,7 +124,7 @@ export default function EditHabit() {
             <>
               <Text style={ui.copy}>{group?.title || 'No group connected'}</Text>
               <Button
-                variant="secondary"
+                variant="primary"
                 isDisabled={busy || localDemo}
                 onPress={() => setConfirm('group')}
               >
@@ -143,8 +144,7 @@ export default function EditHabit() {
           style={{ alignSelf: 'flex-start' }}
           onPress={() => setConfirm('delete')}
         >
-          <Trash2 size={18} strokeWidth={1.8} color={colors.danger} />
-          <Button.Label style={{ color: colors.danger }}>Delete habit</Button.Label>
+          <Button.Label style={{ color: colors.accent }}>Delete habit</Button.Label>
         </Button>
       </View>
       <Dialog
@@ -174,12 +174,12 @@ export default function EditHabit() {
                         : 'This removes the habit and its progress. No group is currently connected. This cannot be undone.'}
               </Dialog.Description>
               {error && (
-                <Text accessibilityLiveRegion="polite" style={[ui.copy, { color: colors.danger }]}>
+                <Text accessibilityLiveRegion="polite" style={[ui.copy, { color: colors.accent }]}>
                   {error}
                 </Text>
               )}
               <Button
-                variant="secondary"
+                variant="primary"
                 isDisabled={busy}
                 onPress={() => {
                   const choice = confirm;
@@ -191,9 +191,7 @@ export default function EditHabit() {
                   });
                 }}
               >
-                <Button.Label
-                  style={{ color: confirm === 'delete' ? colors.danger : colors.accent }}
-                >
+                <Button.Label style={{ color: colors.accent }}>
                   {busy
                     ? 'Please wait…'
                     : confirm === 'group'

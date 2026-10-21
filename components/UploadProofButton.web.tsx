@@ -1,8 +1,6 @@
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Upload } from 'lucide-react-native';
 import { ActionButton } from '@/components/HabbitUI';
-import { colors } from '@/lib/habbit-theme';
 import type { UploadProofButtonProps } from './UploadProofButton';
 
 async function preparePhoto(file: File): Promise<string> {
@@ -83,12 +81,7 @@ export default function UploadProofButton({
           if (file) void selectPhoto(file);
         }}
       />
-      <ActionButton
-        disabled={disabled}
-        busy={preparing}
-        onPress={() => input.current?.click()}
-        icon={<Upload color={colors.accent} size={20} />}
-      >
+      <ActionButton disabled={disabled} busy={preparing} onPress={() => input.current?.click()}>
         Upload photo
       </ActionButton>
     </View>

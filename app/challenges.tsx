@@ -1,7 +1,7 @@
 import { View, Text, FlatList } from 'react-native';
 import { useRouter, Link } from 'expo-router';
-import { Button } from 'heroui-native';
-import { Plus, Users, Check, ListChecks } from 'lucide-react-native';
+import { HabbitButton as Button } from '@/components/HabbitButton';
+import { Users, ListChecks } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Screen, ErrorNotice, ui } from '@/components/HabbitUI';
@@ -13,7 +13,7 @@ import {
   finished,
 } from '@/lib/habbit-store';
 import { action, reconcileAll } from '@/lib/habbit-engine';
-import { colors, headingFont } from '@/lib/habbit-theme';
+import { colors } from '@/lib/habbit-theme';
 
 export default function Challenges() {
   const router = useRouter();
@@ -35,13 +35,12 @@ export default function Challenges() {
       footer={
         <View style={{ gap: 12 }}>
           <ErrorNotice />
-          <Button variant="secondary" isDisabled={busy} onPress={add}>
-            <Plus size={20} color={colors.accent} strokeWidth={1.8} />
+          <Button variant="primary" isDisabled={busy} onPress={add}>
             <Button.Label style={{ color: colors.accent }}>New challenge</Button.Label>
           </Button>
           {!router.canGoBack() && (
-            <Link href="/account" style={{ color: colors.accent }}>
-              Account settings
+            <Link href="/account" asChild>
+              <Button variant="secondary">Account settings</Button>
             </Link>
           )}
         </View>
@@ -60,13 +59,8 @@ export default function Challenges() {
             <Button
               variant="ghost"
               isDisabled={busy}
-              style={{
-                borderRadius: 0,
-                height: 'auto',
-                paddingVertical: 22,
-                paddingHorizontal: 0,
-                alignItems: 'flex-start',
-              }}
+              selected={id === activeId}
+              style={{ paddingVertical: 22 }}
               accessibilityLabel={`Open ${c.draft.habit || 'unfinished challenge'}`}
               onPress={() =>
                 void action(async () => {
@@ -78,9 +72,9 @@ export default function Challenges() {
               }
             >
               <View style={{ flex: 1, gap: 12 }}>
-                <Text style={{ fontFamily: headingFont, fontSize: 21, color: colors.foreground }}>
+                <Button.Label style={{ textAlign: 'left' }}>
                   {c.draft.habit || 'New challenge'}
-                </Text>
+                </Button.Label>
                 <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
                   <Users size={16} color={colors.muted} strokeWidth={1.8} />
                   <Text style={[ui.copy, { flex: 1, fontSize: 14 }]}>
@@ -97,7 +91,6 @@ export default function Challenges() {
                       : `${c.days.filter((d) => ['APPROVED', 'MISSED', 'REJECTED'].includes(d.status)).length} / ${c.draft.totalDays} days`}
                 </Text>
               </View>
-              {id === activeId && <Check size={20} strokeWidth={1.8} color={colors.accent} />}
             </Button>
           </Animated.View>
         )}

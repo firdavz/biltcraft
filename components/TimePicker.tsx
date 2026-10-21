@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform, View } from 'react-native';
 import { useState } from 'react';
-import { Button } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
 import { colors } from '@/lib/habbit-theme';
 export type TimePickerProps = {
   hour: number;
@@ -15,7 +15,7 @@ export function TimePicker({ hour, minute, onChange }: TimePickerProps) {
   return (
     <View>
       {Platform.OS === 'android' && (
-        <Button variant="secondary" onPress={() => setOpen(true)}>
+        <Button variant="primary" onPress={() => setOpen(true)}>
           <Button.Label>
             {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Button.Label>

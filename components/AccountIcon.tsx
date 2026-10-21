@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Button } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
 import { CircleUserRound } from 'lucide-react-native';
 import { colors } from '@/lib/habbit-theme';
 

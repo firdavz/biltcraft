@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Bell, Users, Check, ArrowUpRight, Camera, Radio, Pencil, Plus } from 'lucide-react-native';
-import { Button, Skeleton, Spinner } from 'heroui-native';
+import { Bell, Users, Check, Radio } from 'lucide-react-native';
+import { Skeleton, Spinner } from 'heroui-native';
+import { HabbitButton as Button } from '@/components/HabbitButton';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -177,18 +178,13 @@ export default function Today() {
             <ErrorNotice />
             <PhotoSendDiagnostic />
             <Button
-              variant="secondary"
-              style={{
-                borderRadius: 12,
-                minHeight: 56,
-                backgroundColor: failed ? colors.failText : colors.surface,
-              }}
+              variant="primary"
               onPress={() => setDismissed(resultKey)}
+              style={failed ? { backgroundColor: colors.background, borderRadius: 10 } : undefined}
             >
               <Button.Label style={{ color: failed ? colors.white : colors.accent }}>
                 Back to today
               </Button.Label>
-              <ArrowUpRight size={18} color={failed ? colors.white : colors.accent} />
             </Button>
           </View>
         </View>
@@ -216,7 +212,7 @@ export default function Today() {
         <View style={{ gap: 12, marginTop: 24 }}>
           <Text style={ui.copy}>Habbit was removed from your group</Text>
           <Button
-            variant="secondary"
+            variant="primary"
             onPress={() =>
               void action(async () => {
                 await save({
@@ -270,7 +266,6 @@ export default function Today() {
               <ActionButton
                 disabled={now >= day.proofDeadline || groupRemoved}
                 onPress={() => router.push('/camera')}
-                icon={<Camera size={20} color={colors.accent} />}
               >
                 PROVE IT
               </ActionButton>
@@ -304,7 +299,6 @@ export default function Today() {
           style={{ marginTop: 18 }}
           onPress={() => router.push('/edit-habit')}
         >
-          <Pencil size={15} strokeWidth={1.8} color={colors.accent} />
           <Button.Label numberOfLines={1} style={{ color: colors.accent }}>
             Edit habit
           </Button.Label>
@@ -315,11 +309,7 @@ export default function Today() {
           isDisabled={busy || adding}
           onPress={() => void addHabit()}
         >
-          {adding ? (
-            <Spinner size="sm" color={colors.accent} />
-          ) : (
-            <Plus size={15} strokeWidth={1.8} color={colors.accent} />
-          )}
+          {adding && <Spinner size="sm" color={colors.accent} />}
           <Button.Label numberOfLines={1} style={{ color: colors.accent }}>
             {adding ? 'Adding habit…' : 'Add new habit'}
           </Button.Label>
@@ -343,7 +333,6 @@ export default function Today() {
             });
           }}
         >
-          <Bell size={16} color={colors.accent} />
           <Button.Label style={{ color: colors.accent }}>Enable daily alarm</Button.Label>
         </Button>
       )}

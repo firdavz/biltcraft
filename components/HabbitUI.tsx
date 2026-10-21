@@ -9,10 +9,10 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from '@/components/ui/primitives/SafeAreaView';
-import { Button, Spinner } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
+export { HabbitButton as ActionButton } from './HabbitButton';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
-import { ArrowRight, AlertCircle, RotateCcw, X } from 'lucide-react-native';
-import { LinearGradient } from '@/components/ui/primitives/LinearGradient';
+import { AlertCircle, X } from 'lucide-react-native';
 import { colors, headingFont, bodyFont } from '@/lib/habbit-theme';
 import { useHabbit } from '@/lib/habbit-store';
 import { action, pollUpdates, reconcile } from '@/lib/habbit-engine';
@@ -102,57 +102,6 @@ export function SectionLabel({
     </View>
   );
 }
-export function ActionButton({
-  children,
-  onPress,
-  busy = false,
-  disabled = false,
-  icon,
-}: PropsWithChildren<{
-  onPress: () => void;
-  busy?: boolean;
-  disabled?: boolean;
-  icon?: ReactNode;
-}>) {
-  return (
-    <View
-      style={{
-        shadowColor: colors.accent,
-        shadowOpacity: 0.13,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 7 },
-      }}
-    >
-      <Button
-        onPress={onPress}
-        isDisabled={busy || disabled}
-        variant="secondary"
-        className="border-accent/50 rounded-xl border bg-transparent"
-        style={{ minHeight: 58, overflow: 'hidden' }}
-      >
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(167,139,250,0.16)', 'rgba(167,139,250,0.04)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        {busy ? <Spinner size="sm" /> : icon}
-        <Button.Label
-          style={{
-            color: colors.accent,
-            fontFamily: 'Inter_700Bold',
-            fontSize: 14,
-            letterSpacing: 1.4,
-          }}
-        >
-          {busy ? 'Please wait…' : children}
-        </Button.Label>
-        {!busy && !icon && <ArrowRight size={18} strokeWidth={1.8} color={colors.accent} />}
-      </Button>
-    </View>
-  );
-}
 export function ErrorNotice({ retryConnection = true }: { retryConnection?: boolean }) {
   const error = useHabbit((s) => s.error);
   const busy = useHabbit((s) => s.busy);
@@ -184,7 +133,6 @@ export function ErrorNotice({ retryConnection = true }: { retryConnection?: bool
             });
           }}
         >
-          <RotateCcw size={14} color={colors.accent} />
           <Button.Label style={{ color: colors.accent }}>Retry connection</Button.Label>
         </Button>
       )}

@@ -11,7 +11,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { Camera, RefreshCw, X } from 'lucide-react-native';
-import { Button } from 'heroui-native';
+import { HabbitButton as Button } from '@/components/HabbitButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { goBackOrReplace } from '@/lib/navigation';
 import { colors, headingFont } from '@/lib/habbit-theme';
@@ -162,7 +162,7 @@ export default function ProofCamera() {
       <View style={[styles.top, { top: insets.top + 12 }]}>
         <Button
           isIconOnly
-          variant="secondary"
+          variant="primary"
           isDisabled={capturing || busy}
           onPress={() => goBackOrReplace('/')}
           accessibilityLabel="Close camera"
@@ -173,7 +173,7 @@ export default function ProofCamera() {
         {!proof && (
           <Button
             isIconOnly
-            variant="secondary"
+            variant="primary"
             isDisabled={capturing}
             accessibilityLabel="Switch camera"
             onPress={() => {
@@ -231,7 +231,6 @@ export default function ProofCamera() {
               onPress={() => {
                 void capture();
               }}
-              icon={<Camera color={colors.accent} size={20} />}
             >
               Take photo
             </ActionButton>

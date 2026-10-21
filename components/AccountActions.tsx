@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text } from 'react-native';
-import { Button, Spinner } from 'heroui-native';
-import { LogOut } from 'lucide-react-native';
+import { Spinner } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
 import * as Haptics from 'expo-haptics';
 import { useAuthCopy, authErrorText } from '@/lib/auth-copy';
 import { logOut } from '@/lib/account';
@@ -33,17 +33,13 @@ export function AccountActions({ compact = false }: { compact?: boolean }) {
             .finally(() => setPending(false));
         }}
       >
-        {pending ? (
-          <Spinner size="sm" />
-        ) : (
-          <LogOut size={20} strokeWidth={1.8} color={colors.danger} />
-        )}
-        <Button.Label style={{ color: colors.danger }}>
+        {pending && <Spinner size="sm" />}
+        <Button.Label style={{ color: colors.accent }}>
           {pending ? copy.waiting : copy.logout}
         </Button.Label>
       </Button>
       {error && (
-        <Text accessibilityRole="alert" style={[ui.copy, { color: colors.danger }]}>
+        <Text accessibilityRole="alert" style={[ui.copy, { color: colors.accent }]}>
           {error}
         </Text>
       )}

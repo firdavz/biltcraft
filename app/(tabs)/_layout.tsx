@@ -1,12 +1,14 @@
-import { CircleDot, LayoutGrid } from 'lucide-react-native';
+import { HabbitButton } from '@/components/HabbitButton';
 import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useThemeColor } from 'heroui-native';
 import * as Haptics from 'expo-haptics';
 import { useHabbit } from '@/lib/habbit-store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const started = useHabbit((s) => s.started);
+  const insets = useSafeAreaInsets();
   const [background, border, accent, muted] = useThemeColor([
     'background',
     'border',
@@ -23,6 +25,7 @@ export default function TabLayout() {
           sceneStyle: { backgroundColor: background },
           tabBarStyle: {
             display: started ? 'flex' : 'none',
+            height: 64 + insets.bottom,
             backgroundColor: background,
             borderTopColor: border,
             shadowColor: background,
@@ -49,16 +52,27 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
+            tabBarShowLabel: false,
             title: 'TODAY',
-            tabBarIcon: ({ color }) => <CircleDot size={21} strokeWidth={1.8} color={color} />,
+            tabBarButton: ({ children: _children, ...props }) => (
+              <HabbitButton {...props} variant="tab">
+                Today
+              </HabbitButton>
+            ),
           }}
         />
         <Tabs.Screen
           name="progress"
           options={{
+            tabBarShowLabel: false,
             title: 'PROGRESS',
-            href: started ? '/progress' : null,
-            tabBarIcon: ({ color }) => <LayoutGrid size={21} strokeWidth={1.8} color={color} />,
+            tabBarItemStyle: started ? undefined : { display: 'none' },
+            tabBarButton: ({ children: _children, ...props }) =>
+              started ? (
+                <HabbitButton {...props} variant="tab">
+                  Progress
+                </HabbitButton>
+              ) : null,
           }}
         />
       </Tabs>

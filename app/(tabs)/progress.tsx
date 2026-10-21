@@ -74,7 +74,7 @@ export default function Progress() {
           backgroundColor: success
             ? colors.accent
             : fail
-              ? colors.danger
+              ? colors.muted
               : 'rgba(255,255,255,0.015)',
           justifyContent: 'center',
           alignItems: 'center',
@@ -115,7 +115,7 @@ export default function Progress() {
             <View style={[ui.divider, { marginTop: 2 }]} />
             <View style={styles.legend}>
               <Legend color={colors.accent} label="Approved" />
-              <Legend color={colors.danger} label="Missed" />
+              <Legend color={colors.muted} label="Missed" />
               <Legend label="Upcoming" />
             </View>
             <View style={[ui.panel, { marginTop: 10, gap: 16 }]}>

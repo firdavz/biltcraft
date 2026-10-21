@@ -2,8 +2,6 @@ import { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import {
-  Button,
-  Input,
   InputOTP,
   Label,
   TextField,
@@ -13,6 +11,8 @@ import {
   REGEXP_ONLY_DIGITS,
 } from 'heroui-native';
 import * as Haptics from 'expo-haptics';
+import { HabbitButton as Button } from '@/components/HabbitButton';
+import { HabbitInput as Input } from '@/components/HabbitInput';
 import { Screen, ui } from '@/components/HabbitUI';
 import { GradientTitle } from '@/components/GradientTitle';
 import { bilt } from '@/lib/bilt';
@@ -30,6 +30,7 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [sentEmail, setSentEmail] = useState('');
   const [type, setType] = useState<'email' | 'email_change'>('email');
+  const [otpFocused, setOtpFocused] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,6 +204,8 @@ export default function SignIn() {
               </Button>
               <Label>{copy.codeLabel}</Label>
               <InputOTP
+                onFocus={() => setOtpFocused(true)}
+                onBlur={() => setOtpFocused(false)}
                 maxLength={6}
                 pattern={REGEXP_ONLY_DIGITS}
                 value={code}
@@ -232,7 +235,16 @@ export default function SignIn() {
                         flex: 1,
                         minWidth: 0,
                         height: 52,
-                        backgroundColor: colors.surface,
+                        backgroundColor: colors.inputBackground,
+                        borderWidth: 1,
+                        borderColor:
+                          otpFocused && index === Math.min(code.length, 5)
+                            ? colors.accent
+                            : colors.border,
+                        shadowColor: colors.accent,
+                        shadowOpacity: otpFocused && index === Math.min(code.length, 5) ? 0.35 : 0,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 1 },
                         borderRadius: 10,
                       }}
                     />
@@ -245,7 +257,7 @@ export default function SignIn() {
                 </Text>
               )}
               <Button
-                variant="secondary"
+                variant="primary"
                 isDisabled={busy || code.length !== 6}
                 onPress={() => {
                   void verify(code);
@@ -293,11 +305,8 @@ export default function SignIn() {
                 <FieldError>{visibleError}</FieldError>
               </TextField>
               <Button
-                variant="secondary"
+                variant="primary"
                 isDisabled={busy || !email.trim()}
-                style={styles.continue}
-                className="bg-continue"
-                animation="disable-all"
                 onPress={() => {
                   void send();
                 }}
@@ -328,15 +337,10 @@ export default function SignIn() {
   );
 }
 const styles = StyleSheet.create({
-  language: { flexDirection: 'row', justifyContent: 'flex-end' },
+  language: { flexDirection: 'row', justifyContent: 'flex-end', gap: 20 },
   panel: { width: '100%', maxWidth: 440, alignSelf: 'center', marginTop: 58, marginBottom: 28 },
-  continue: {
-    minHeight: 58,
-    borderRadius: 12,
-    backgroundColor: colors.continue,
-  },
   sent: { fontFamily: bodyFont, color: colors.muted, fontSize: 14, lineHeight: 24 },
-  error: { fontFamily: bodyFont, color: colors.danger, fontSize: 14, lineHeight: 22 },
+  error: { fontFamily: bodyFont, color: colors.accent, fontSize: 14, lineHeight: 22 },
   legal: {
     flex: 1,
     justifyContent: 'flex-end',

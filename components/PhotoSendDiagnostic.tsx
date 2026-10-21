@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View, Text } from 'react-native';
-import { Button, Spinner } from 'heroui-native';
-import { AlertCircle, Copy, X } from 'lucide-react-native';
+import { Spinner } from 'heroui-native';
+import { HabbitButton as Button } from './HabbitButton';
+import { AlertCircle, X } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useHabbit, save } from '@/lib/habbit-store';
@@ -84,7 +85,6 @@ export function PhotoSendDiagnostic() {
             .finally(() => setCopying(false));
         }}
       >
-        <Copy color={colors.accent} size={15} strokeWidth={1.8} />
         <Button.Label style={{ color: colors.accent }} numberOfLines={1}>
           {copying
             ? 'Copying…'

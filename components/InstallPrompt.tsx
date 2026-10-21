@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { HabbitButton } from './HabbitButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -114,7 +115,7 @@ export function InstallPrompt({ enabled }: { enabled: boolean }) {
     return (
       <View
         style={{ bottom }}
-        className="border-border bg-card absolute right-4 left-4 z-50 flex-row items-center gap-3 rounded-lg border p-4 shadow-lg"
+        className="border-border bg-surface absolute right-4 left-4 z-50 gap-3 rounded-lg border p-4"
       >
         <View className="flex-1">
           <Text.Paragraph type="body-sm" weight="semibold">
@@ -124,24 +125,10 @@ export function InstallPrompt({ enabled }: { enabled: boolean }) {
             Install this app for a full-screen experience
           </Text.Paragraph>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          className="rounded-md px-3 py-2"
-          onPress={() => setInstallEvent(null)}
-        >
-          <Text.Paragraph type="body-sm" weight="semibold" color="muted">
-            Not now
-          </Text.Paragraph>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          className="bg-primary rounded-md px-3 py-2"
-          onPress={handleInstall}
-        >
-          <Text.Paragraph type="body-sm" weight="semibold" className="text-primary-foreground">
-            Install
-          </Text.Paragraph>
-        </Pressable>
+        <HabbitButton variant="secondary" onPress={() => setInstallEvent(null)}>
+          Not now
+        </HabbitButton>
+        <HabbitButton onPress={handleInstall}>Install</HabbitButton>
       </View>
     );
   }
@@ -150,7 +137,7 @@ export function InstallPrompt({ enabled }: { enabled: boolean }) {
     return (
       <View
         style={{ bottom }}
-        className="border-border bg-card absolute right-4 left-4 z-50 flex-row items-center gap-3 rounded-lg border p-4 shadow-lg"
+        className="border-border bg-surface absolute right-4 left-4 z-50 gap-3 rounded-lg border p-4"
       >
         <View className="flex-1">
           <Text.Paragraph type="body-sm" weight="semibold">
@@ -160,15 +147,9 @@ export function InstallPrompt({ enabled }: { enabled: boolean }) {
             Tap Share, then “Add to Home Screen” to install this app
           </Text.Paragraph>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          className="rounded-md px-3 py-2"
-          onPress={dismissIosHint}
-        >
-          <Text.Paragraph type="body-sm" weight="semibold" color="muted">
-            Got it
-          </Text.Paragraph>
-        </Pressable>
+        <HabbitButton variant="secondary" onPress={dismissIosHint}>
+          Got it
+        </HabbitButton>
       </View>
     );
   }
